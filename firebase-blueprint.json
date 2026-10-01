@@ -1,0 +1,310 @@
+{
+  "entities": {
+    "ScholarshipApplication": {
+      "title": "ScholarshipApplication",
+      "description": "Scholarship application data for Faculty of Social Sciences, Naresuan University",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for application (e.g. FSS-2569-001)",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of application submission",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update",
+          "maxLength": 64
+        },
+        "academicYear": {
+          "type": "string",
+          "description": "Academic year (e.g. 2569)",
+          "maxLength": 10
+        },
+        "status": {
+          "type": "string",
+          "description": "Application status",
+          "enum": ["submitted", "eligible_for_interview", "interviewed", "awarded", "not_selected"]
+        },
+        "awardedAmount": {
+          "type": "number",
+          "description": "Approved scholarship amount in THB"
+        },
+        "reviewerNotes": {
+          "type": "string",
+          "description": "Committee remarks or interview notes",
+          "maxLength": 2000
+        },
+        "agreedToTerms": {
+          "type": "boolean",
+          "description": "Applicant consent and confirmation of truthful information"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Student full name with title",
+          "maxLength": 200
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Naresuan University student ID (8 digits)",
+          "maxLength": 30
+        },
+        "department": {
+          "type": "string",
+          "description": "Department within Faculty of Social Sciences",
+          "maxLength": 100
+        },
+        "studyYear": {
+          "type": "string",
+          "description": "Current year of study",
+          "maxLength": 50
+        },
+        "phone": {
+          "type": "string",
+          "description": "Student telephone number",
+          "maxLength": 30
+        },
+        "homeAddress": {
+          "type": "string",
+          "description": "Student domicile address",
+          "maxLength": 500
+        },
+        "gpaxRange": {
+          "type": "string",
+          "description": "GPAX range (more than 3.50, 3.00-3.49, etc.)",
+          "maxLength": 50
+        },
+        "fatherName": {
+          "type": "string",
+          "description": "Father's name",
+          "maxLength": 200
+        },
+        "fatherStatus": {
+          "type": "string",
+          "description": "Father's living status",
+          "maxLength": 50
+        },
+        "fatherAge": {
+          "type": "string",
+          "description": "Father's age",
+          "maxLength": 10
+        },
+        "fatherOccupation": {
+          "type": "string",
+          "description": "Father's occupation",
+          "maxLength": 200
+        },
+        "fatherOccupationDetail": {
+          "type": "string",
+          "description": "Father's occupation detail",
+          "maxLength": 500
+        },
+        "motherName": {
+          "type": "string",
+          "description": "Mother's name",
+          "maxLength": 200
+        },
+        "motherStatus": {
+          "type": "string",
+          "description": "Mother's living status",
+          "maxLength": 50
+        },
+        "motherAge": {
+          "type": "string",
+          "description": "Mother's age",
+          "maxLength": 10
+        },
+        "motherOccupation": {
+          "type": "string",
+          "description": "Mother's occupation",
+          "maxLength": 200
+        },
+        "motherOccupationDetail": {
+          "type": "string",
+          "description": "Mother's occupation detail",
+          "maxLength": 500
+        },
+        "guardianName": {
+          "type": "string",
+          "description": "Guardian's name",
+          "maxLength": 200
+        },
+        "guardianStatus": {
+          "type": "string",
+          "description": "Guardian's living status",
+          "maxLength": 50
+        },
+        "guardianAge": {
+          "type": "string",
+          "description": "Guardian's age",
+          "maxLength": 10
+        },
+        "guardianOccupation": {
+          "type": "string",
+          "description": "Guardian's occupation",
+          "maxLength": 200
+        },
+        "guardianOccupationDetail": {
+          "type": "string",
+          "description": "Guardian's occupation detail",
+          "maxLength": 500
+        },
+        "guardianRelation": {
+          "type": "string",
+          "description": "Relationship with applicant",
+          "maxLength": 100
+        },
+        "parentsMaritalStatus": {
+          "type": "string",
+          "description": "Parents marital status",
+          "maxLength": 150
+        },
+        "familyLivingCondition": {
+          "type": "string",
+          "description": "Family living condition description",
+          "maxLength": 500
+        },
+        "familyIllnessStatus": {
+          "type": "string",
+          "description": "Family chronic or severe illness status",
+          "maxLength": 150
+        },
+        "siblingsStudyingCount": {
+          "type": "string",
+          "description": "Number of siblings currently studying",
+          "maxLength": 50
+        },
+        "familyYearlyIncome": {
+          "type": "string",
+          "description": "Total yearly family income bracket",
+          "maxLength": 100
+        },
+        "monthlyAllowance": {
+          "type": "string",
+          "description": "Monthly allowance received by student",
+          "maxLength": 50
+        },
+        "studentLoanStatus": {
+          "type": "string",
+          "description": "Student loan (กยศ.) borrowing status",
+          "maxLength": 100
+        },
+        "pastScholarshipHistory": {
+          "type": "string",
+          "description": "Past scholarship history",
+          "maxLength": 100
+        },
+        "pastScholarshipName": {
+          "type": "string",
+          "description": "Name of previous scholarship if received",
+          "maxLength": 200
+        },
+        "pastScholarshipAmount": {
+          "type": "string",
+          "description": "Amount of previous scholarship",
+          "maxLength": 50
+        },
+        "accommodationType": {
+          "type": "string",
+          "description": "Student residence type",
+          "maxLength": 100
+        },
+        "partTimeWorkHistory": {
+          "type": "string",
+          "description": "Part time work participation",
+          "maxLength": 50
+        },
+        "studentActivityParticipation": {
+          "type": "string",
+          "description": "Student club or council participation",
+          "maxLength": 50
+        },
+        "volunteerWorkParticipation": {
+          "type": "string",
+          "description": "Community volunteer participation",
+          "maxLength": 50
+        },
+        "selfPrideOrTalent": {
+          "type": "string",
+          "description": "Personal pride or special talents",
+          "maxLength": 2000
+        },
+        "reasonForApplying": {
+          "type": "string",
+          "description": "Reason and necessity for applying",
+          "maxLength": 3000
+        },
+        "scholarshipFundUsagePlan": {
+          "type": "string",
+          "description": "Plan for utilizing the scholarship fund",
+          "maxLength": 2000
+        },
+        "studentPhotoDoc": {
+          "type": "object",
+          "description": "Student ID photo file document"
+        },
+        "academicTranscriptDoc": {
+          "type": "object",
+          "description": "Student academic transcript / grade report document"
+        },
+        "incomeCertificateDoc": {
+          "type": "object",
+          "description": "Family income certificate / salary slip document"
+        }
+      },
+      "required": ["id", "fullName", "studentId", "department", "studyYear", "phone", "academicYear", "status"]
+    },
+    "TimelineConfig": {
+      "title": "TimelineConfig",
+      "description": "Configuration for scholarship announcement timeline and requirements",
+      "type": "object",
+      "properties": {
+        "academicYear": {
+          "type": "string",
+          "description": "Academic year",
+          "maxLength": 10
+        },
+        "heroTitle": {
+          "type": "string",
+          "description": "Header title",
+          "maxLength": 200
+        },
+        "heroSubtitle": {
+          "type": "string",
+          "description": "Header subtitle",
+          "maxLength": 500
+        },
+        "contactPhone": {
+          "type": "string",
+          "description": "Contact telephone number",
+          "maxLength": 50
+        },
+        "lastUpdatedAt": {
+          "type": "string",
+          "description": "Last updated date string",
+          "maxLength": 50
+        },
+        "lastUpdatedBy": {
+          "type": "string",
+          "description": "Last updated by staff name",
+          "maxLength": 100
+        }
+      },
+      "required": ["academicYear", "heroTitle"]
+    }
+  },
+  "firestore": {
+    "/scholarship_applications/{applicationId}": {
+      "schema": "ScholarshipApplication",
+      "description": "Scholarship applications submitted by students for academic year 2569"
+    },
+    "/timeline_configs/{configId}": {
+      "schema": "TimelineConfig",
+      "description": "Scholarship timeline and announcement configuration"
+    }
+  }
+}

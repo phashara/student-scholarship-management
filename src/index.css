@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Print Styles for Official Application Slip */
+@media print {
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  /* Hide app navigation, modals overlays, backdrop blur */
+  header, footer, nav, .print\:hidden {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  /* Make sure printable slip, itemized score sheet, announcements list and all their children are visible */
+  #printable-application-slip,
+  #printable-application-slip *,
+  #printable-itemized-score-sheet,
+  #printable-itemized-score-sheet *,
+  #printable-announcements-list,
+  #printable-announcements-list * {
+    visibility: visible;
+  }
+
+  /* Reset container constraints during print */
+  .fixed, .overflow-y-auto, .overflow-hidden, .backdrop-blur-md, .backdrop-blur-2xl {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  #printable-application-slip,
+  #printable-itemized-score-sheet,
+  #printable-announcements-list {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10mm 12mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Page break rules */
+  .page-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .page-break-before {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  /* Background color rendering */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

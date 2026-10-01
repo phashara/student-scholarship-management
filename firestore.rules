@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidApplication(data) {
+      return data.keys().hasAll(['id', 'fullName', 'studentId', 'department', 'studyYear', 'phone', 'academicYear', 'status'])
+        && data.id is string && data.id.size() <= 64
+        && data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 200
+        && data.studentId is string && data.studentId.size() > 0 && data.studentId.size() <= 30
+        && data.department is string && data.department.size() <= 100
+        && data.studyYear is string && data.studyYear.size() <= 50
+        && data.phone is string && data.phone.size() <= 30
+        && data.academicYear is string && data.academicYear.size() <= 10
+        && data.status in ['submitted', 'eligible_for_interview', 'interviewed', 'awarded', 'not_selected']
+        && (!('reviewerNotes' in data) || (data.reviewerNotes is string && data.reviewerNotes.size() <= 2000))
+        && (!('awardedAmount' in data) || (data.awardedAmount is number && data.awardedAmount >= 0))
+        && (!('reasonForApplying' in data) || (data.reasonForApplying is string && data.reasonForApplying.size() <= 3000));
+    }
+
+    function isValidTimelineConfig(data) {
+      return data.keys().hasAll(['academicYear', 'heroTitle'])
+        && data.academicYear is string && data.academicYear.size() <= 10
+        && data.heroTitle is string && data.heroTitle.size() <= 200;
+    }
+
+    // Connection testing endpoint
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Scholarship Applications
+    match /scholarship_applications/{applicationId} {
+      allow get: if isValidId(applicationId);
+      allow list: if true;
+      allow create: if isValidId(applicationId) && isValidApplication(incoming());
+      allow update: if isValidId(applicationId) && isValidApplication(incoming());
+      allow delete: if isValidId(applicationId);
+    }
+
+    // Timeline and Announcement Configuration
+    match /timeline_configs/{configId} {
+      allow read: if isValidId(configId);
+      allow create, update: if isValidId(configId) && isValidTimelineConfig(incoming());
+    }
+  }
+}
