@@ -48,7 +48,7 @@ service cloud.firestore {
       allow list: if true;
       allow create: if isValidId(applicationId) && isValidApplication(incoming());
       allow update: if isValidId(applicationId) && isValidApplication(incoming());
-      allow delete: if isValidId(applicationId);
+      allow delete: if true;
     }
 
     // Timeline and Announcement Configuration

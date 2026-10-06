@@ -24,6 +24,7 @@ import {
   Heart,
   HelpCircle,
   Layers,
+  Pencil,
   RotateCcw,
   Scale,
   Search,
@@ -39,8 +40,15 @@ import {
   clearAllApplications,
   loadTimelineConfig,
 } from '../data/scholarshipData';
-import { clearAllApplicationsOnline, saveApplicationOnline, saveTimelineConfigOnline } from '../services/firebaseService';
+import {
+  clearAllApplicationsOnline,
+  deleteApplicationOnline,
+  saveApplicationOnline,
+  saveTimelineConfigOnline,
+} from '../services/firebaseService';
 import { ScholarshipApplication, ScoreBreakdown, TimelineConfig } from '../types';
+import { AdminEditApplicantModal } from './AdminEditApplicantModal';
+import { DeleteApplicantModal } from './DeleteApplicantModal';
 import { ItemizedScoreModal } from './ItemizedScoreModal';
 import { TimelineEditorModal } from './TimelineEditorModal';
 
@@ -51,6 +59,8 @@ interface ReviewerDashboardProps {
   onOpenScoringModal?: () => void;
   timelineConfig?: TimelineConfig;
   onUpdateTimelineConfig?: (newConfig: TimelineConfig) => void;
+  onDeleteApplication?: (appId: string) => Promise<void> | void;
+  onClearAllApplications?: () => Promise<void> | void;
 }
 
 export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
@@ -60,6 +70,8 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   onOpenScoringModal,
   timelineConfig: propTimelineConfig,
   onUpdateTimelineConfig,
+  onDeleteApplication,
+  onClearAllApplications,
 }) => {
   const [activeView, setActiveView] = useState<'table' | 'itemized' | 'scoring'>('table');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('all');
@@ -75,6 +87,13 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   const [newStatus, setNewStatus] = useState<ScholarshipApplication['status']>('submitted');
   const [newAwardedAmount, setNewAwardedAmount] = useState<string>('10000');
   const [reviewerNotes, setReviewerNotes] = useState<string>('');
+
+  // Admin full edit modal (แก้ไขข้อมูลในฐานข้อมูล)
+  const [editApplicantTarget, setEditApplicantTarget] = useState<ScholarshipApplication | null>(null);
+
+  // Secure Delete modal (ยืนยันรหัสผ่าน 07011985 เพื่อลบข้อมูล)
+  const [deleteTargetApp, setDeleteTargetApp] = useState<ScholarshipApplication | null>(null);
+  const [isClearAllModalOpen, setIsClearAllModalOpen] = useState<boolean>(false);
 
   // Itemized score modal (ใบคะแนนการประเมินรายบุคคลฉบับละเอียด)
   const [selectedItemizedApp, setSelectedItemizedApp] = useState<ScholarshipApplication | null>(null);
@@ -118,6 +137,34 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
     };
     saveApplicationOnline(updated);
     onRefresh();
+  };
+
+  const handleSaveEditedApplicant = async (updatedApp: ScholarshipApplication) => {
+    await saveApplicationOnline(updatedApp);
+    onRefresh();
+  };
+
+  const handleConfirmDeleteSingle = async () => {
+    if (!deleteTargetApp) return;
+    const targetId = deleteTargetApp.id;
+    if (onDeleteApplication) {
+      await onDeleteApplication(targetId);
+    } else {
+      await deleteApplicationOnline(targetId);
+      onRefresh();
+    }
+    setDeleteTargetApp(null);
+  };
+
+  const handleConfirmClearAll = async () => {
+    if (onClearAllApplications) {
+      await onClearAllApplications();
+    } else {
+      await clearAllApplicationsOnline();
+      clearAllApplications();
+      onRefresh();
+    }
+    setIsClearAllModalOpen(false);
   };
 
   // Calculate scores for all applications
@@ -185,20 +232,9 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
     onRefresh();
   };
 
-  // Export full dataset (Module 0 - 8) to CSV
-  const handleClearAllData = async () => {
-    const isConfirmed = window.confirm(
-      'คุณต้องการล้างข้อมูลใบสมัครทั้งหมดเพื่อเริ่มเปิดรับสมัครจริงใช่หรือไม่?\n\n(ข้อมูลทั้งบน Cloud Firestore และเครื่องจะถูกลบทั้งหมด)'
-    );
-    if (!isConfirmed) return;
-
-    try {
-      await clearAllApplicationsOnline();
-      clearAllApplications();
-      onRefresh();
-    } catch (err) {
-      console.error('Failed to clear data', err);
-    }
+  // Clear all data with password confirmation
+  const handleClearAllData = () => {
+    setIsClearAllModalOpen(true);
   };
 
   const handleExportCSV = () => {
@@ -750,6 +786,14 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                             <span className="hidden sm:inline">ใบคะแนน</span>
                           </button>
                           <button
+                            onClick={() => setEditApplicantTarget(app)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-[#34C759]/15 hover:bg-[#34C759]/25 text-[#248A3D] rounded-full transition-colors cursor-pointer"
+                            title="แก้ไขข้อมูลผู้สมัครในฐานข้อมูล (Admin Edit)"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span className="hidden md:inline">แก้ไขข้อมูล</span>
+                          </button>
+                          <button
                             onClick={() => onViewApplication(app)}
                             className="p-1.5 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors cursor-pointer"
                             title="ดูใบสมัครฉบับเต็ม"
@@ -761,6 +805,13 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                             className="px-3 py-1 text-xs font-semibold bg-[#007AFF] hover:bg-[#0071EB] text-white rounded-full transition-all active:scale-95 shadow-xs cursor-pointer"
                           >
                             ปรับสถานะ
+                          </button>
+                          <button
+                            onClick={() => setDeleteTargetApp(app)}
+                            className="p-1.5 text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors cursor-pointer"
+                            title="ลบข้อมูลผู้สมัครรายนี้ (ต้องใส่รหัสผ่าน 07011985)"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -997,10 +1048,27 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                           </button>
                           <button
                             type="button"
+                            onClick={() => setEditApplicantTarget(app)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-[#34C759]/15 hover:bg-[#34C759]/25 text-[#248A3D] rounded-full transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                            title="แก้ไขข้อมูลผู้สมัครในฐานข้อมูล (Admin Edit)"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>แก้ไข</span>
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleOpenStatusEdit(app)}
                             className="px-2.5 py-1 text-xs font-semibold bg-[#1C1C1E] hover:bg-black text-white rounded-full transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                           >
                             สถานะ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTargetApp(app)}
+                            className="p-1.5 text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors cursor-pointer"
+                            title="ลบข้อมูลผู้สมัครรายนี้ (ต้องใส่รหัสผ่าน 07011985)"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -1246,6 +1314,39 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
           onClose={() => setIsTimelineEditorOpen(false)}
         />
       )}
+
+      {/* Admin Full Edit Applicant Modal */}
+      {editApplicantTarget && (
+        <AdminEditApplicantModal
+          isOpen={!!editApplicantTarget}
+          onClose={() => setEditApplicantTarget(null)}
+          application={editApplicantTarget}
+          onSave={handleSaveEditedApplicant}
+          onDeleteClick={() => {
+            const target = editApplicantTarget;
+            setEditApplicantTarget(null);
+            setDeleteTargetApp(target);
+          }}
+        />
+      )}
+
+      {/* Delete Single Applicant Modal (ยืนยันรหัสผ่าน 07011985) */}
+      <DeleteApplicantModal
+        isOpen={!!deleteTargetApp}
+        onClose={() => setDeleteTargetApp(null)}
+        application={deleteTargetApp}
+        onConfirmDelete={handleConfirmDeleteSingle}
+      />
+
+      {/* Clear All Applicants Modal (ยืนยันรหัสผ่าน 07011985) */}
+      <DeleteApplicantModal
+        isOpen={isClearAllModalOpen}
+        onClose={() => setIsClearAllModalOpen(false)}
+        application={null}
+        isClearAll={true}
+        totalCount={applications.length}
+        onConfirmDelete={handleConfirmClearAll}
+      />
     </div>
   );
 };

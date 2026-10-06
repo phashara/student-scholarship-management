@@ -16,9 +16,11 @@ import {
   Megaphone,
   Phone,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AnnouncementsSection } from './components/AnnouncementsSection';
+import { ApplicantListSection } from './components/ApplicantListSection';
 import { ApplicationSlipModal } from './components/ApplicationSlipModal';
 import { Header } from './components/Header';
 import { ReviewerDashboard } from './components/ReviewerDashboard';
@@ -26,8 +28,10 @@ import { ScholarshipForm } from './components/ScholarshipForm';
 import { ScoringCriteriaModal } from './components/ScoringCriteriaModal';
 import { StatusTracker } from './components/StatusTracker';
 import { TimelineSection } from './components/TimelineSection';
-import { loadApplications, loadTimelineConfig } from './data/scholarshipData';
+import { clearAllApplications, loadApplications, loadTimelineConfig } from './data/scholarshipData';
 import {
+  clearAllApplicationsOnline,
+  deleteApplicationOnline,
   saveTimelineConfigOnline,
   subscribeApplications,
   subscribeTimelineConfig,
@@ -35,7 +39,7 @@ import {
 import { ScholarshipApplication, TimelineConfig } from './types';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'form' | 'timeline' | 'announcements' | 'status' | 'admin'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'timeline' | 'announcements' | 'status' | 'applicants' | 'admin'>('form');
   const [applications, setApplications] = useState<ScholarshipApplication[]>([]);
   const [timelineConfig, setTimelineConfig] = useState<TimelineConfig>(loadTimelineConfig);
   const [selectedApplication, setSelectedApplication] = useState<ScholarshipApplication | null>(null);
@@ -76,6 +80,19 @@ export default function App() {
 
   const refreshApplications = () => {
     setApplications(loadApplications());
+  };
+
+  const handleDeleteApplication = async (appId: string) => {
+    // 1. Immediately remove from React state so UI updates with zero lag
+    setApplications((prev) => prev.filter((a) => a.id !== appId && a.studentId !== appId));
+    // 2. Permanently delete from Firestore and localStorage
+    await deleteApplicationOnline(appId);
+  };
+
+  const handleClearAllApplications = async () => {
+    setApplications([]);
+    await clearAllApplicationsOnline();
+    clearAllApplications();
   };
 
   const handleUpdateTimelineConfig = async (newConfig: TimelineConfig) => {
@@ -162,6 +179,15 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'applicants' && (
+          <ApplicantListSection
+            applications={applications}
+            onRefresh={refreshApplications}
+            timelineConfig={timelineConfig}
+            onDeleteApplication={handleDeleteApplication}
+          />
+        )}
+
         {activeTab === 'admin' && (
           isAdminLoggedIn ? (
             <ReviewerDashboard
@@ -171,6 +197,8 @@ export default function App() {
               onOpenScoringModal={() => setIsScoringModalOpen(true)}
               timelineConfig={timelineConfig}
               onUpdateTimelineConfig={handleUpdateTimelineConfig}
+              onDeleteApplication={handleDeleteApplication}
+              onClearAllApplications={handleClearAllApplications}
             />
           ) : (
             <div className="bg-white rounded-[24px] p-8 max-w-md mx-auto text-center border border-black/[0.08] shadow-sm space-y-4 my-8">
@@ -236,6 +264,16 @@ export default function App() {
           >
             <CheckCircle2 className="w-5 h-5" />
             <span className="text-[10px]">เช็กสถานะ</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('applicants')}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-full transition-all active:scale-95 cursor-pointer ${
+              activeTab === 'applicants' ? 'text-[#007AFF] font-bold' : 'text-[#8E8E93]'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-[10px]">รายชื่อ</span>
           </button>
 
           <button

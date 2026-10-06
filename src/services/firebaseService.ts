@@ -82,30 +82,12 @@ export function subscribeApplications(
         remoteApps.push(item);
       });
 
-      // Auto-Rescue: If client has any REAL applications in local storage missing from Firestore, auto-sync them!
-      try {
-        const localApps = loadLocalApplications().filter((a) => !DEMO_APP_IDS.has(a.id));
-        for (const localApp of localApps) {
-          const alreadyExists = remoteApps.some(
-            (r) => r.id === localApp.id || (localApp.studentId && r.studentId === localApp.studentId)
-          );
-          if (!alreadyExists) {
-            // Re-upload the real submission to cloud Firestore
-            const docRef = doc(db, APPLICATIONS_COLLECTION, localApp.id);
-            setDoc(docRef, sanitizeForFirestore(localApp)).catch(() => {});
-            remoteApps.push(localApp);
-          }
-        }
-      } catch (err) {
-        console.warn('Local auto-rescue skipped:', err);
-      }
-
       // Sort by createdAt descending
       remoteApps.sort((a, b) => {
         return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
       });
 
-      // Update local storage cache with real applications only
+      // Update local storage cache to match Firestore truth
       try {
         localStorage.setItem(
           'nu_socsci_scholarship_applications_2569',
@@ -120,7 +102,7 @@ export function subscribeApplications(
     (error) => {
       handleFirestoreError(error, OperationType.GET, APPLICATIONS_COLLECTION);
       if (onError) onError(error);
-      // Fallback to local storage (filtering out demo)
+      // Fallback to local storage only if offline
       onUpdate(loadLocalApplications().filter((a) => !DEMO_APP_IDS.has(a.id)));
     }
   );
@@ -143,6 +125,7 @@ export async function clearAllApplicationsOnline(): Promise<void> {
   }
   try {
     localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify([]));
+    localStorage.removeItem('nu_socsci_scholarship_draft_2569');
   } catch {
     // ignore
   }
@@ -186,19 +169,41 @@ export async function saveApplicationOnline(app: ScholarshipApplication): Promis
 }
 
 /**
- * Delete an application from Firestore and LocalStorage
+ * Delete an application from Firestore and LocalStorage permanently
  */
 export async function deleteApplicationOnline(appId: string): Promise<void> {
+  // 1. Immediately remove from local storage cache
   try {
-    const docRef = doc(db, APPLICATIONS_COLLECTION, appId);
-    await deleteDoc(docRef);
+    const current = loadLocalApplications().filter(
+      (a) => a.id !== appId && a.studentId !== appId
+    );
+    localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(current));
+  } catch {
+    // ignore
+  }
+
+  // 2. Delete all matching documents from Cloud Firestore
+  try {
+    // Delete direct doc ref by ID
+    const directDocRef = doc(db, APPLICATIONS_COLLECTION, appId);
+    await deleteDoc(directDocRef);
+
+    // Also scan and delete any document matching this ID or studentId
+    const appsRef = collection(db, APPLICATIONS_COLLECTION);
+    const snapshot = await getDocs(appsRef);
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+      if (
+        docSnap.id === appId ||
+        data.id === appId ||
+        (data.studentId && (data.studentId === appId || docSnap.id === data.studentId))
+      ) {
+        await deleteDoc(doc(db, APPLICATIONS_COLLECTION, docSnap.id));
+      }
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${APPLICATIONS_COLLECTION}/${appId}`);
   }
-
-  // Update local storage
-  const current = loadLocalApplications().filter((a) => a.id !== appId);
-  localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(current));
 }
 
 /**

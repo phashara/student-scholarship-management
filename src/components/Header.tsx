@@ -17,14 +17,15 @@ import {
   Scale,
   ShieldCheck,
   Sparkles,
+  Users,
   X,
 } from 'lucide-react';
 import { ScholarshipApplication, TimelineConfig } from '../types';
 import { AdminLoginModal } from './AdminLoginModal';
 
 interface HeaderProps {
-  activeTab: 'form' | 'timeline' | 'announcements' | 'status' | 'admin';
-  setActiveTab: (tab: 'form' | 'timeline' | 'announcements' | 'status' | 'admin') => void;
+  activeTab: 'form' | 'timeline' | 'announcements' | 'status' | 'applicants' | 'admin';
+  setActiveTab: (tab: 'form' | 'timeline' | 'announcements' | 'status' | 'applicants' | 'admin') => void;
   applicationCount?: number;
   onOpenScoringModal?: () => void;
   isAdminLoggedIn?: boolean;
@@ -58,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const handleNavClick = (tab: 'form' | 'timeline' | 'announcements' | 'status' | 'admin') => {
+  const handleNavClick = (tab: 'form' | 'timeline' | 'announcements' | 'status' | 'applicants' | 'admin') => {
     if (tab === 'admin') {
       handleAdminTabClick();
     } else {
@@ -221,6 +222,19 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
 
               <button
+                id="nav-applicants-tab"
+                onClick={() => handleNavClick('applicants')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-[12px] text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  activeTab === 'applicants'
+                    ? 'bg-white text-[#1C1C1E] shadow-sm font-bold scale-[1.01]'
+                    : 'text-[#636366] hover:text-[#1C1C1E] hover:bg-white/40'
+                }`}
+              >
+                <Users className={`w-4 h-4 ${activeTab === 'applicants' ? 'text-[#007AFF]' : 'text-[#8E8E93]'}`} />
+                <span>รายชื่อผู้สมัคร</span>
+              </button>
+
+              <button
                 id="nav-admin-tab"
                 onClick={() => handleNavClick('admin')}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-[12px] text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
@@ -344,6 +358,21 @@ export const Header: React.FC<HeaderProps> = ({
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 <span>ตรวจสอบสถานะ</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[#8E8E93]" />
+            </button>
+
+            <button
+              onClick={() => handleNavClick('applicants')}
+              className={`w-full flex items-center justify-between p-3 rounded-[16px] text-sm font-semibold transition-all ${
+                activeTab === 'applicants' ? 'bg-[#007AFF]/10 text-[#007AFF]' : 'text-[#1C1C1E] hover:bg-[#F2F2F7]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-[10px] flex items-center justify-center ${activeTab === 'applicants' ? 'bg-[#007AFF] text-white' : 'bg-[#F2F2F7] text-[#007AFF]'}`}>
+                  <Users className="w-4 h-4" />
+                </div>
+                <span>รายชื่อผู้สมัคร</span>
               </div>
               <ChevronRight className="w-4 h-4 text-[#8E8E93]" />
             </button>
