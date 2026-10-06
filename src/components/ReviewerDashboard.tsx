@@ -59,7 +59,7 @@ interface ReviewerDashboardProps {
   onOpenScoringModal?: () => void;
   timelineConfig?: TimelineConfig;
   onUpdateTimelineConfig?: (newConfig: TimelineConfig) => void;
-  onDeleteApplication?: (appId: string) => Promise<void> | void;
+  onDeleteApplication?: (appId: string, studentId?: string) => Promise<void> | void;
   onClearAllApplications?: () => Promise<void> | void;
 }
 
@@ -148,9 +148,9 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
     if (!deleteTargetApp) return;
     const targetId = deleteTargetApp.id;
     if (onDeleteApplication) {
-      await onDeleteApplication(targetId);
+      await onDeleteApplication(targetId, deleteTargetApp.studentId);
     } else {
-      await deleteApplicationOnline(targetId);
+      await deleteApplicationOnline(targetId, deleteTargetApp.studentId);
       onRefresh();
     }
     setDeleteTargetApp(null);

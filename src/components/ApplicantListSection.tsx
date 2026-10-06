@@ -22,7 +22,7 @@ interface ApplicantListSectionProps {
   applications: ScholarshipApplication[];
   onRefresh?: () => void;
   timelineConfig?: TimelineConfig;
-  onDeleteApplication?: (appId: string) => Promise<void> | void;
+  onDeleteApplication?: (appId: string, studentId?: string) => Promise<void> | void;
 }
 
 export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
@@ -404,7 +404,7 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
         onConfirmDelete={async () => {
           if (!deleteTarget) return;
           if (onDeleteApplication) {
-            await onDeleteApplication(deleteTarget.id);
+            await onDeleteApplication(deleteTarget.id, deleteTarget.studentId);
           }
           if (onRefresh) onRefresh();
           setDeleteTarget(null);
