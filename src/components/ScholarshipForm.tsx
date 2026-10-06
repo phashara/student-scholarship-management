@@ -363,8 +363,8 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
     const newApp: ScholarshipApplication = {
       ...(formData as ScholarshipApplication),
       id: `FSS-${activeYear}-${Math.floor(100 + Math.random() * 900)}`,
-      createdAt: new Date().toLocaleString('th-TH'),
-      updatedAt: new Date().toLocaleString('th-TH'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       status: 'submitted',
       academicYear: activeYear,
     };
@@ -1792,7 +1792,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
               className="inline-flex items-center gap-2 px-9 py-3 rounded-full bg-[#34C759] hover:bg-[#2fb350] text-white text-sm font-bold shadow-lg shadow-[#34C759]/25 transition-all active:scale-95 cursor-pointer"
             >
               <Send className="w-4 h-4" />
-              <span>ส่งใบสมัครขอรับทุน (Submit Application)</span>
+              <span>ยืนยันการสมัคร (Confirm Application)</span>
             </button>
           )}
         </div>

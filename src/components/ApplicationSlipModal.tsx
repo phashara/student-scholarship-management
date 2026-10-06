@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { ScholarshipApplication } from '../types';
+import { formatThaiDateTime } from '../utils/dateUtils';
 
 interface ApplicationSlipModalProps {
   application: ScholarshipApplication | null;
@@ -226,7 +227,7 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
               <span className="px-2.5 py-1 bg-[#F2F2F7] rounded-full font-mono font-bold text-[#1C1C1E] border border-black/[0.05]">
                 เลขที่ใบสมัคร: {application.id}
               </span>
-              <span>วันที่บันทึก: {application.createdAt}</span>
+              <span>วันที่บันทึก: {formatThaiDateTime(application.createdAt)}</span>
               <span className="px-2.5 py-0.5 rounded-full font-bold bg-[#34C759]/12 text-[#248A3D] border border-[#34C759]/30 print:bg-transparent print:border-black print:text-black">
                 สถานะ: บันทึกและยื่นใบสมัครแล้ว
               </span>
@@ -488,7 +489,7 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </span>
               </div>
               <span className="font-mono text-[#8E8E93] text-[11px]">
-                (ยืนยันเมื่อ {application.createdAt})
+                (ยืนยันเมื่อ {formatThaiDateTime(application.createdAt)})
               </span>
             </div>
 

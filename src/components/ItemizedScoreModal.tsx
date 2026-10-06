@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { calculateScholarshipScore } from '../data/scholarshipData';
 import { ScholarshipApplication } from '../types';
+import { formatThaiDateTime } from '../utils/dateUtils';
 
 interface ItemizedScoreModalProps {
   application: ScholarshipApplication | null;
@@ -335,7 +336,7 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
                 <span className="text-sm font-semibold text-[#8E8E93]">/ 100</span>
               </div>
               <p className="text-[11px] text-[#8E8E93] mt-1 font-mono">
-                ยื่นเมื่อ: {new Date(application.createdAt).toLocaleDateString('th-TH')}
+                ยื่นเมื่อ: {formatThaiDateTime(application.createdAt)}
               </p>
             </div>
           </div>
