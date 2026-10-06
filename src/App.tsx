@@ -82,17 +82,17 @@ export default function App() {
     setApplications(loadApplications());
   };
 
-  const handleDeleteApplication = async (appId: string) => {
-    // 1. Immediately remove from React state so UI updates with zero lag
-    setApplications((prev) => prev.filter((a) => a.id !== appId && a.studentId !== appId));
-    // 2. Permanently delete from Firestore and localStorage
-    await deleteApplicationOnline(appId);
+  const handleDeleteApplication = async (appId: string, studentId?: string) => {
+    await deleteApplicationOnline(appId, studentId);
+    setApplications(prev => prev.filter(app =>
+      !(app.id.replace(/^APP-/, 'FSS-') === appId.replace(/^APP-/, 'FSS-') &&
+        (!studentId || app.studentId === studentId))
+    ));
   };
 
   const handleClearAllApplications = async () => {
-    setApplications([]);
     await clearAllApplicationsOnline();
-    clearAllApplications();
+    setApplications(loadApplications());
   };
 
   const handleUpdateTimelineConfig = async (newConfig: TimelineConfig) => {
