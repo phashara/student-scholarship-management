@@ -26,6 +26,9 @@ const APPLICATIONS_COLLECTION = 'scholarship_applications';
 const TIMELINE_COLLECTION = 'timeline_configs';
 const TIMELINE_DOC_ID = 'nu_socsci_2569';
 
+const normalizeApplicationId = (id: string) => id.replace(/^APP-/, 'FSS-');
+const pendingDeletedApplicationIds = new Set<string>();
+
 export const DEMO_APP_IDS = new Set([
   'FSS-2569-001',
   'FSS-2569-002',
@@ -71,6 +74,10 @@ export function subscribeApplications(
 
       snapshot.forEach((docSnap) => {
         const item = docSnap.data() as ScholarshipApplication;
+        const normalizedItemId = typeof item.id === 'string' ? normalizeApplicationId(item.id) : '';
+        if (normalizedItemId && pendingDeletedApplicationIds.has(normalizedItemId)) {
+          return;
+        }
         if (item.id && item.id.startsWith('APP-2569-')) {
           item.id = item.id.replace('APP-2569-', 'FSS-2569-');
         }
@@ -83,6 +90,11 @@ export function subscribeApplications(
 
         remoteApps.push(item);
       });
+
+      const confirmedIds = new Set(remoteApps.map((app) => normalizeApplicationId(app.id)));
+      for (const id of pendingDeletedApplicationIds) {
+        if (!confirmedIds.has(id)) pendingDeletedApplicationIds.delete(id);
+      }
 
       // Sort by createdAt descending
       remoteApps.sort((a, b) => {
@@ -118,17 +130,32 @@ export function subscribeApplications(
 export async function clearAllApplicationsOnline(): Promise<void> {
   const snapshot = await getDocsFromServer(collection(db, APPLICATIONS_COLLECTION));
   if (snapshot.size > 500) throw new Error('มีข้อมูลเกิน 500 รายการ กรุณาลบเป็นรายบุคคล');
-  if (!snapshot.empty) {
-    const batch = writeBatch(db);
-    snapshot.docs.forEach(item => batch.delete(item.ref));
-    await batch.commit();
-  }
+  const removedIds = new Set(snapshot.docs.flatMap(item => [
+    normalizeApplicationId(item.id),
+    String(item.data().id || '').replace(/^APP-/, 'FSS-'),
+  ]));
+  removedIds.forEach((id) => pendingDeletedApplicationIds.add(id));
   try {
-    const removedIds = new Set(snapshot.docs.flatMap(item => [item.id.replace(/^APP-/, 'FSS-'), String(item.data().id || '').replace(/^APP-/, 'FSS-')]));
+    if (!snapshot.empty) {
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(item => batch.delete(item.ref));
+      await batch.commit();
+    }
+    const verification = await getDocsFromServer(collection(db, APPLICATIONS_COLLECTION));
+    const stillPresent = verification.docs.some((item) => {
+      const dataId = typeof item.data().id === 'string' ? normalizeApplicationId(item.data().id) : '';
+      return removedIds.has(normalizeApplicationId(item.id)) || (dataId && removedIds.has(dataId));
+    });
+    if (stillPresent) throw new Error('เซิร์ฟเวอร์ยังพบข้อมูลเดิมหลังการลบ กรุณาลองใหม่อีกครั้ง');
+
     const remaining = loadLocalApplications().filter(app => !removedIds.has(app.id.replace(/^APP-/, 'FSS-')));
     localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(remaining));
     localStorage.removeItem('nu_socsci_scholarship_draft_2569');
-  } catch { /* The listener provides confirmed server state. */ }
+  } catch (error) {
+    removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
+    throw error;
+  }
+  removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
 }
 
 /**
@@ -173,25 +200,43 @@ export async function saveApplicationOnline(app: ScholarshipApplication): Promis
  */
 export async function deleteApplicationOnline(appId: string, studentId?: string): Promise<void> {
   if (!appId) throw new Error('ไม่พบเลขที่ใบสมัครที่ต้องการลบ');
-  const normalize = (id: string) => id.replace(/^APP-/, 'FSS-');
+  const normalizedAppId = normalizeApplicationId(appId);
   const snapshot = await getDocsFromServer(collection(db, APPLICATIONS_COLLECTION));
   const matches = snapshot.docs.filter(item => {
     const data = item.data();
-    const idMatches = normalize(item.id) === normalize(appId) ||
-      (typeof data.id === 'string' && normalize(data.id) === normalize(appId));
+    const idMatches = normalizeApplicationId(item.id) === normalizedAppId ||
+      (typeof data.id === 'string' && normalizeApplicationId(data.id) === normalizedAppId);
     return idMatches && (!studentId || data.studentId === studentId);
   });
   if (!matches.length) throw new Error('ไม่พบใบสมัครที่ตรงกันบนฐานข้อมูล กรุณารีเฟรชก่อนลองใหม่');
   if (matches.length > 500) throw new Error('พบรายการตรงกันมากผิดปกติ ยกเลิกการลบ');
-  const batch = writeBatch(db);
-  matches.forEach(item => batch.delete(item.ref));
-  await batch.commit();
+  const removedIds = new Set(matches.flatMap(item => [
+    normalizeApplicationId(item.id),
+    typeof item.data().id === 'string' ? normalizeApplicationId(item.data().id) : '',
+  ].filter(Boolean)));
+  removedIds.forEach((id) => pendingDeletedApplicationIds.add(id));
   try {
+    const batch = writeBatch(db);
+    matches.forEach(item => batch.delete(item.ref));
+    await batch.commit();
+    const verification = await getDocsFromServer(collection(db, APPLICATIONS_COLLECTION));
+    const stillPresent = verification.docs.some(item => {
+      const data = item.data();
+      const idMatches = normalizeApplicationId(item.id) === normalizedAppId ||
+        (typeof data.id === 'string' && normalizeApplicationId(data.id) === normalizedAppId);
+      return idMatches && (!studentId || data.studentId === studentId);
+    });
+    if (stillPresent) throw new Error('เซิร์ฟเวอร์ยังพบข้อมูลเดิมหลังการลบ กรุณาลองใหม่อีกครั้ง');
+
     const remaining = loadLocalApplications().filter(app =>
-      !(normalize(app.id) === normalize(appId) && (!studentId || app.studentId === studentId))
+      !(normalizeApplicationId(app.id) === normalizedAppId && (!studentId || app.studentId === studentId))
     );
     localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(remaining));
-  } catch { /* The listener provides confirmed server state. */ }
+  } catch (error) {
+    removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
+    throw error;
+  }
+  removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
 }
 
 /**
