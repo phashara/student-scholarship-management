@@ -71,11 +71,16 @@ export function subscribeApplications(
     (snapshot) => {
       if (snapshot.metadata.hasPendingWrites) return;
       const remoteApps: ScholarshipApplication[] = [];
+      const snapshotIds = new Set<string>();
 
       snapshot.forEach((docSnap) => {
         const item = docSnap.data() as ScholarshipApplication;
         const normalizedItemId = typeof item.id === 'string' ? normalizeApplicationId(item.id) : '';
-        if (normalizedItemId && pendingDeletedApplicationIds.has(normalizedItemId)) {
+        const normalizedDocumentId = normalizeApplicationId(docSnap.id);
+        if (normalizedDocumentId) snapshotIds.add(normalizedDocumentId);
+        if (normalizedItemId) snapshotIds.add(normalizedItemId);
+        if (pendingDeletedApplicationIds.has(normalizedDocumentId) ||
+            (normalizedItemId && pendingDeletedApplicationIds.has(normalizedItemId))) {
           return;
         }
         if (item.id && item.id.startsWith('APP-2569-')) {
@@ -91,9 +96,8 @@ export function subscribeApplications(
         remoteApps.push(item);
       });
 
-      const confirmedIds = new Set(remoteApps.map((app) => normalizeApplicationId(app.id)));
       for (const id of pendingDeletedApplicationIds) {
-        if (!confirmedIds.has(id)) pendingDeletedApplicationIds.delete(id);
+        if (!snapshotIds.has(id)) pendingDeletedApplicationIds.delete(id);
       }
 
       // Sort by createdAt descending
@@ -155,7 +159,6 @@ export async function clearAllApplicationsOnline(): Promise<void> {
     removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
     throw error;
   }
-  removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
 }
 
 /**
@@ -236,7 +239,6 @@ export async function deleteApplicationOnline(appId: string, studentId?: string)
     removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
     throw error;
   }
-  removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
 }
 
 /**
