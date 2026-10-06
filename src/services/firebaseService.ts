@@ -96,8 +96,11 @@ export function subscribeApplications(
         remoteApps.push(item);
       });
 
-      for (const id of pendingDeletedApplicationIds) {
-        if (!snapshotIds.has(id)) pendingDeletedApplicationIds.delete(id);
+      // Only a server snapshot can confirm that a deleted record is gone.
+      if (!snapshot.metadata.fromCache) {
+        for (const id of pendingDeletedApplicationIds) {
+          if (!snapshotIds.has(id)) pendingDeletedApplicationIds.delete(id);
+        }
       }
 
       // Sort by createdAt descending
