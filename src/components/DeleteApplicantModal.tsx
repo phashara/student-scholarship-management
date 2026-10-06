@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle,
@@ -29,12 +29,21 @@ export const DeleteApplicantModal: React.FC<DeleteApplicantModalProps> = ({
   totalCount = 0,
   onConfirmDelete,
 }) => {
-  if (!isOpen) return null;
 
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPassword('');
+      setErrorMsg('');
+      setIsSuccess(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleClose = () => {
     if (isDeleting) return;
@@ -56,13 +65,16 @@ export const DeleteApplicantModal: React.FC<DeleteApplicantModalProps> = ({
     setIsDeleting(true);
     try {
       await onConfirmDelete();
-      setIsSuccess(true);
-      setTimeout(() => {
-        handleClose();
-      }, 700);
+      setPassword('');
+      onClose();
     } catch (err) {
       console.error('Error during deletion:', err);
-      setErrorMsg('เกิดข้อผิดพลาดในการลบข้อมูล กรุณาลองใหม่อีกครั้ง');
+      const code = (err as { code?: string })?.code;
+      setErrorMsg(code === 'permission-denied'
+        ? 'ฐานข้อมูลไม่อนุญาตให้ลบ กรุณาตรวจสอบสิทธิ์เจ้าหน้าที่'
+        : code === 'unavailable'
+          ? 'เชื่อมต่อฐานข้อมูลไม่ได้ ยังยืนยันการลบไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต'
+          : err instanceof Error ? err.message : 'ลบข้อมูลไม่สำเร็จ กรุณารีเฟรชก่อนลองใหม่');
     } finally {
       setIsDeleting(false);
     }

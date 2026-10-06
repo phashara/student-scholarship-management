@@ -5,10 +5,10 @@
 import {
   collection,
   doc,
-  getDocs,
+  getDocsFromServer,
+  writeBatch,
   onSnapshot,
   setDoc,
-  deleteDoc,
   getDoc,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
@@ -64,7 +64,9 @@ export function subscribeApplications(
   // Set up real-time listener with proper error callback as required by skill
   const unsubscribe = onSnapshot(
     appsRef,
+    { includeMetadataChanges: true },
     (snapshot) => {
+      if (snapshot.metadata.hasPendingWrites) return;
       const remoteApps: ScholarshipApplication[] = [];
 
       snapshot.forEach((docSnap) => {
@@ -75,7 +77,7 @@ export function subscribeApplications(
 
         // Permanently filter out and purge demo accounts
         if (DEMO_APP_IDS.has(item.id)) {
-          deleteDoc(doc(db, APPLICATIONS_COLLECTION, docSnap.id)).catch(() => {});
+          // Reading data must never delete database records.
           return;
         }
 
@@ -114,21 +116,19 @@ export function subscribeApplications(
  * Clear all applications from both Firestore and LocalStorage
  */
 export async function clearAllApplicationsOnline(): Promise<void> {
-  try {
-    const appsRef = collection(db, APPLICATIONS_COLLECTION);
-    const snapshot = await getDocs(appsRef);
-    for (const docSnap of snapshot.docs) {
-      await deleteDoc(doc(db, APPLICATIONS_COLLECTION, docSnap.id));
-    }
-  } catch (err) {
-    console.warn('Error clearing online applications:', err);
+  const snapshot = await getDocsFromServer(collection(db, APPLICATIONS_COLLECTION));
+  if (snapshot.size > 500) throw new Error('มีข้อมูลเกิน 500 รายการ กรุณาลบเป็นรายบุคคล');
+  if (!snapshot.empty) {
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(item => batch.delete(item.ref));
+    await batch.commit();
   }
   try {
-    localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify([]));
+    const removedIds = new Set(snapshot.docs.flatMap(item => [item.id.replace(/^APP-/, 'FSS-'), String(item.data().id || '').replace(/^APP-/, 'FSS-')]));
+    const remaining = loadLocalApplications().filter(app => !removedIds.has(app.id.replace(/^APP-/, 'FSS-')));
+    localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(remaining));
     localStorage.removeItem('nu_socsci_scholarship_draft_2569');
-  } catch {
-    // ignore
-  }
+  } catch { /* The listener provides confirmed server state. */ }
 }
 
 /**
@@ -171,39 +171,27 @@ export async function saveApplicationOnline(app: ScholarshipApplication): Promis
 /**
  * Delete an application from Firestore and LocalStorage permanently
  */
-export async function deleteApplicationOnline(appId: string): Promise<void> {
-  // 1. Immediately remove from local storage cache
+export async function deleteApplicationOnline(appId: string, studentId?: string): Promise<void> {
+  if (!appId) throw new Error('ไม่พบเลขที่ใบสมัครที่ต้องการลบ');
+  const normalize = (id: string) => id.replace(/^APP-/, 'FSS-');
+  const snapshot = await getDocsFromServer(collection(db, APPLICATIONS_COLLECTION));
+  const matches = snapshot.docs.filter(item => {
+    const data = item.data();
+    const idMatches = normalize(item.id) === normalize(appId) ||
+      (typeof data.id === 'string' && normalize(data.id) === normalize(appId));
+    return idMatches && (!studentId || data.studentId === studentId);
+  });
+  if (!matches.length) throw new Error('ไม่พบใบสมัครที่ตรงกันบนฐานข้อมูล กรุณารีเฟรชก่อนลองใหม่');
+  if (matches.length > 500) throw new Error('พบรายการตรงกันมากผิดปกติ ยกเลิกการลบ');
+  const batch = writeBatch(db);
+  matches.forEach(item => batch.delete(item.ref));
+  await batch.commit();
   try {
-    const current = loadLocalApplications().filter(
-      (a) => a.id !== appId && a.studentId !== appId
+    const remaining = loadLocalApplications().filter(app =>
+      !(normalize(app.id) === normalize(appId) && (!studentId || app.studentId === studentId))
     );
-    localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(current));
-  } catch {
-    // ignore
-  }
-
-  // 2. Delete all matching documents from Cloud Firestore
-  try {
-    // Delete direct doc ref by ID
-    const directDocRef = doc(db, APPLICATIONS_COLLECTION, appId);
-    await deleteDoc(directDocRef);
-
-    // Also scan and delete any document matching this ID or studentId
-    const appsRef = collection(db, APPLICATIONS_COLLECTION);
-    const snapshot = await getDocs(appsRef);
-    for (const docSnap of snapshot.docs) {
-      const data = docSnap.data();
-      if (
-        docSnap.id === appId ||
-        data.id === appId ||
-        (data.studentId && (data.studentId === appId || docSnap.id === data.studentId))
-      ) {
-        await deleteDoc(doc(db, APPLICATIONS_COLLECTION, docSnap.id));
-      }
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `${APPLICATIONS_COLLECTION}/${appId}`);
-  }
+    localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(remaining));
+  } catch { /* The listener provides confirmed server state. */ }
 }
 
 /**
