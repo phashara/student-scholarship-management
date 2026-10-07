@@ -10,7 +10,10 @@ import {
   onSnapshot,
   setDoc,
   getDoc,
+  getDocFromServer,
+  runTransaction,
 } from 'firebase/firestore';
+import { validateSubmissionSize } from '../utils/applicationSubmission';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { ScholarshipApplication, TimelineConfig } from '../types';
 import {
@@ -184,6 +187,40 @@ export async function seedInitialApplications(initialList: ScholarshipApplicatio
 /**
  * Save an application to both Firestore (online) and LocalStorage (offline cache)
  */
+export async function submitApplicationOnline(app: ScholarshipApplication): Promise<ScholarshipApplication> {
+  validateSubmissionSize(app);
+  if (!app.submissionToken || app.id !== `FSS-${app.academicYear}-${app.submissionToken}`) {
+    throw new Error('เลขใบสมัครไม่ถูกต้อง กรุณากลับไปตรวจข้อมูลแล้วลองใหม่');
+  }
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new Error('ขณะนี้ไม่มีอินเทอร์เน็ต กรุณาเชื่อมต่อแล้วลองส่งอีกครั้ง ข้อมูลที่กรอกยังอยู่ครบ');
+  }
+  const docRef = doc(db, APPLICATIONS_COLLECTION, app.id);
+  const cleanData = sanitizeForFirestore(app);
+  // Transactions fail while offline and never overwrite a different submission.
+  // A retry after an uncertain response reuses the same ID and is safe to repeat.
+  await runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(docRef);
+    if (existing.exists()) {
+      const saved = existing.data();
+      if (saved.submissionToken !== app.submissionToken || saved.studentId !== app.studentId || saved.academicYear !== app.academicYear) {
+        throw new Error('เลขใบสมัครนี้มีข้อมูลอื่นอยู่แล้ว กรุณาติดต่อเจ้าหน้าที่ โทร. 055-961911');
+      }
+      return;
+    }
+    transaction.set(docRef, cleanData);
+  });
+  const confirmed = await getDocFromServer(docRef);
+  const saved = confirmed.data() as ScholarshipApplication | undefined;
+  if (!confirmed.exists() || saved?.submissionToken !== app.submissionToken || saved.studentId !== app.studentId) {
+    throw new Error('ยังยืนยันการบันทึกไม่ได้ กรุณาลองส่งอีกครั้งด้วยเลขใบสมัครเดิม');
+  }
+  saveLocalApplication(saved);
+  return saved;
+}
+
+// Staff updates keep the existing application ID. New submissions use the
+// transaction above and must never enter this merge-based update path.
 export async function saveApplicationOnline(app: ScholarshipApplication): Promise<void> {
   // Always update local cache immediately for responsive UX
   saveLocalApplication(app);
