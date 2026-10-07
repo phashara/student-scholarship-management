@@ -11,68 +11,7 @@ import {
 } from 'lucide-react';
 import { AttachedDoc } from '../types';
 
-interface ImageCompressOptions {
-  maxWidth?: number;
-  maxHeight?: number;
-  quality?: number;
-}
-
-/**
- * Compress an image file to keep base64 data URL compact and lightning-fast
- */
-function compressImage(file: File, options: ImageCompressOptions = {}): Promise<string> {
-  const { maxWidth = 1000, maxHeight = 1000, quality = 0.8 } = options;
-  return new Promise((resolve, reject) => {
-    // If it's a PDF or non-image, just read as dataURL directly
-    if (!file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(event.target?.result as string);
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        // Use JPEG for optimal photo compression, PNG for transparency
-        const format = file.type === 'image/png' ? 'image/jpeg' : file.type;
-        const compressedDataUrl = canvas.toDataURL(format, quality);
-        resolve(compressedDataUrl);
-      };
-      img.onerror = () => resolve(event.target?.result as string);
-      img.src = event.target?.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+import { prepareAttachment } from '../utils/attachmentProcessing';
 
 interface DocumentUploaderProps {
   id: string;
@@ -85,6 +24,7 @@ interface DocumentUploaderProps {
   doc?: AttachedDoc;
   value?: AttachedDoc;
   onChange: (doc: AttachedDoc | undefined) => void;
+  onProcessingChange?: (busy: boolean) => void;
   isPhoto?: boolean; // Specialized mode for student portrait photo
   aspectRatio?: 'square' | 'portrait' | 'auto';
 }
@@ -100,6 +40,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   doc,
   value,
   onChange,
+  onProcessingChange,
   isPhoto = false,
 }) => {
   const activeDoc = doc || value;
@@ -109,6 +50,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [fileError, setFileError] = useState('');
+  const processingRef = useRef(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -118,26 +61,21 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   };
 
   const processFile = async (file: File) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
     setIsProcessing(true);
+    setFileError('');
+    onProcessingChange?.(true);
     try {
-      // Compress image for optimal performance and storage
-      const dataUrl = await compressImage(file, {
-        maxWidth: isPhoto ? 600 : 1200,
-        maxHeight: isPhoto ? 800 : 1600,
-        quality: 0.82,
-      });
-
-      onChange({
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        dataUrl,
-        uploadedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-      });
-    } catch (err) {
-      console.error('File read error:', err);
+      const prepared = await prepareAttachment(file, isPhoto);
+      onChange(prepared);
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : 'ประมวลผลไฟล์ไม่สำเร็จ กรุณาเลือกไฟล์อีกครั้ง');
     } finally {
+      processingRef.current = false;
       setIsProcessing(false);
+      onProcessingChange?.(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -152,6 +90,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setFileError('');
     onChange(undefined);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -188,11 +127,12 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
         {activeDoc && (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#34C759]/15 text-[#248A3D] shrink-0">
             <CheckCircle2 className="w-3 h-3 text-[#34C759]" />
-            <span>อัปโหลดแล้ว</span>
+            <span>แนบแล้ว • รอยืนยันการสมัคร</span>
           </span>
         )}
       </div>
 
+      {fileError && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-xs text-red-800">{fileError}</p>}
       <input
         ref={fileInputRef}
         id={id}
@@ -292,8 +232,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             </p>
             <p className="text-[10px] text-[#8E8E93]">
               {isPhoto
-                ? 'รองรับไฟล์ภาพ JPG, PNG (ขนาดไม่เกิน 5MB)'
-                : 'รองรับไฟล์ PDF, JPG, PNG ขนาดไม่เกิน 10MB'}
+                ? 'JPG / PNG ต้นฉบับไม่เกิน 10 MB ระบบช่วยย่อภาพให้ กรุณาตรวจความชัดก่อนส่ง'
+                : 'PDF ไม่เกิน 450 KB หรือ JPG / PNG ที่ระบบช่วยย่อให้ • ไฟล์แนบรวมไม่เกิน 650 KB'}
             </p>
           </div>
         </div>

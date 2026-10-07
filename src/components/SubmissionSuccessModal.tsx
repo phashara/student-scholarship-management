@@ -57,7 +57,7 @@ export const SubmissionSuccessModal: React.FC<SubmissionSuccessModalProps> = ({
         <div className="bg-[#F2F2F7] rounded-[20px] p-4 text-left border border-black/[0.04] space-y-2.5">
           <div className="flex items-center justify-between pb-2 border-b border-black/[0.06]">
             <span className="text-xs text-[#8E8E93] font-medium">เลขที่ใบสมัคร</span>
-            <span className="font-mono font-bold text-sm text-[#007AFF] bg-white px-2.5 py-0.5 rounded-full border border-[#007AFF]/20">
+            <span className="font-mono font-bold text-xs break-all max-w-[70%] text-[#007AFF] bg-white px-2.5 py-0.5 rounded-full border border-[#007AFF]/20">
               {application.id}
             </span>
           </div>
