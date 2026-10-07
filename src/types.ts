@@ -1,5 +1,6 @@
 export interface ScholarshipApplication {
   id: string;
+  submissionToken?: string;
   createdAt: string;
   updatedAt: string;
   academicYear: string; // "2569"
