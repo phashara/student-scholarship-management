@@ -184,6 +184,7 @@ export default function App() {
             applications={applications}
             onRefresh={refreshApplications}
             timelineConfig={timelineConfig}
+            isAdminLoggedIn={isAdminLoggedIn}
             onDeleteApplication={handleDeleteApplication}
           />
         )}
