@@ -713,11 +713,13 @@ export function saveApplication(app: ScholarshipApplication): void {
   }
 }
 
-export function saveDraft(data: Partial<ScholarshipApplication>): void {
+export function saveDraft(data: Partial<ScholarshipApplication>): boolean {
   try {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(data));
+    return true;
   } catch (e) {
     console.error('Failed to save draft', e);
+    return false;
   }
 }
 

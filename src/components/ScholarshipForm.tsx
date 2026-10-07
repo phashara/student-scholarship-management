@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   Award,
@@ -67,7 +67,8 @@ import {
   loadDraft,
   saveDraft,
 } from '../data/scholarshipData';
-import { saveApplicationOnline } from '../services/firebaseService';
+import { submitApplicationOnline } from '../services/firebaseService';
+import { prepareSubmission, submissionErrorMessage, validateAttachments, validateSubmissionSize } from '../utils/applicationSubmission';
 import { ScholarshipApplication, TimelineConfig } from '../types';
 import { DocumentUploader } from './DocumentUploader';
 
@@ -152,6 +153,26 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [draftSavedAlert, setDraftSavedAlert] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState('');
+  const [draftWarning, setDraftWarning] = useState('');
+  const [processingFiles, setProcessingFiles] = useState(0);
+  const [isSlowSubmission, setIsSlowSubmission] = useState(false);
+  const submittingRef = useRef(false);
+  const processingFilesRef = useRef(0);
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
+
+  const rememberDraft = (draft: Partial<ScholarshipApplication>) => {
+    const saved = saveDraft(draft);
+    setDraftWarning(saved ? '' : 'เก็บฉบับร่างในเครื่องไม่ได้ กรุณาอย่าปิดหน้านี้จนกว่าจะส่งใบสมัครสำเร็จ');
+    return saved;
+  };
+
+  const handleProcessingChange = (busy: boolean) => {
+    processingFilesRef.current = Math.max(0, processingFilesRef.current + (busy ? 1 : -1));
+    setProcessingFiles(processingFilesRef.current);
+  };
 
   // Load draft on mount
   useEffect(() => {
@@ -162,11 +183,17 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
   }, []);
 
   const handleInputChange = (field: keyof ScholarshipApplication, value: any) => {
-    setFormData((prev) => {
-      const updated = { ...prev, [field]: value };
-      saveDraft(updated);
-      return updated;
-    });
+    if (submittingRef.current) return;
+    const updated = { ...formDataRef.current, [field]: value };
+    if (field === 'studentId' && value !== formDataRef.current.studentId) {
+      delete updated.submissionToken;
+      delete updated.id;
+      delete updated.createdAt;
+    }
+    formDataRef.current = updated;
+    setFormData(updated);
+    rememberDraft(updated);
+    setSubmissionError('');
 
     if (errors[field]) {
       setErrors((prev) => {
@@ -175,6 +202,11 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
         return copy;
       });
     }
+  };
+
+  const handleAttachmentChange = (field: 'studentPhotoDoc' | 'academicTranscriptDoc' | 'incomeCertificateDoc', doc: ScholarshipApplication[typeof field]) => {
+    if (doc) validateAttachments({ ...formDataRef.current, [field]: doc });
+    handleInputChange(field, doc);
   };
 
   const handleAutoFillDemo = () => {
@@ -347,8 +379,14 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
     }
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (submittingRef.current) return;
+    setSubmissionError('');
+    if (processingFilesRef.current > 0) {
+      setSubmissionError('กรุณารอให้ประมวลผลไฟล์แนบเสร็จก่อนส่งใบสมัคร');
+      return;
+    }
 
     // Validate all modules
     for (let i = 0; i < totalModules; i++) {
@@ -359,19 +397,30 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
       }
     }
 
-    const activeYear = timelineConfig?.academicYear || '2569';
-    const newApp: ScholarshipApplication = {
-      ...(formData as ScholarshipApplication),
-      id: `FSS-${activeYear}-${Math.floor(100 + Math.random() * 900)}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: 'submitted',
-      academicYear: activeYear,
-    };
-
-    saveApplicationOnline(newApp);
-    clearDraft();
-    onSubmitSuccess(newApp);
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    setIsSlowSubmission(false);
+    const slowTimer = window.setTimeout(() => setIsSlowSubmission(true), 15000);
+    let confirmed: ScholarshipApplication | undefined;
+    try {
+      const newApp = prepareSubmission(formDataRef.current, timelineConfig?.academicYear || '2569');
+      validateSubmissionSize(newApp);
+      // Persist the retry token before any network request.
+      formDataRef.current = newApp;
+      setFormData(newApp);
+      rememberDraft(newApp);
+      confirmed = await submitApplicationOnline(newApp);
+      clearDraft();
+      setDraftWarning('');
+    } catch (error) {
+      setSubmissionError(submissionErrorMessage(error));
+    } finally {
+      window.clearTimeout(slowTimer);
+      submittingRef.current = false;
+      setIsSubmitting(false);
+      setIsSlowSubmission(false);
+    }
+    if (confirmed) onSubmitSuccess(confirmed);
   };
 
   const handleDownloadPdf = async (e?: React.MouseEvent) => {
@@ -444,6 +493,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
             <button
               type="button"
               onClick={handleAutoFillDemo}
+              disabled={isSubmitting || processingFiles > 0}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold bg-[#007AFF] hover:bg-[#0066d6] text-white transition-all active:scale-95 cursor-pointer shadow-md shadow-[#007AFF]/25"
               title="เติมข้อมูลจำลองอัตโนมัติเพื่อทดสอบทุกโมดูลทันที"
             >
@@ -500,6 +550,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
                 <button
                   key={mod.num}
                   type="button"
+                  disabled={isSubmitting || processingFiles > 0}
                   onClick={() => {
                     setActiveModule(mod.num);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -525,7 +576,11 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
       </div>
 
       {/* Main Form Content Container */}
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {draftWarning && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{draftWarning}</p>}
+      {submissionError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><strong>ยังไม่ยืนยันการสมัคร</strong><p>{submissionError}</p></div>}
+      {isSubmitting && <p role="status" aria-live="polite" className="rounded-xl bg-blue-50 p-4 text-sm text-blue-900">{isSlowSubmission ? 'ยังรอการยืนยันจากฐานข้อมูล กรุณาอย่าปิดหน้านี้ ระบบจะไม่แจ้งสำเร็จจนกว่าจะตรวจสอบได้' : 'กำลังบันทึกและตรวจสอบใบสมัคร กรุณารอสักครู่…'}</p>}
+      <form onSubmit={handleSubmit} className="space-y-6" aria-busy={isSubmitting}>
+        <fieldset disabled={isSubmitting} className="contents">
         {/* ============================================================== */}
         {/* Module 0 : การยืนยันข้อมูล */}
         {/* ============================================================== */}
@@ -751,7 +806,8 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
                   isPhoto={true}
                   required={false}
                   doc={formData.studentPhotoDoc}
-                  onChange={(doc) => handleInputChange('studentPhotoDoc', doc)}
+                  onProcessingChange={handleProcessingChange}
+                  onChange={(doc) => handleAttachmentChange('studentPhotoDoc', doc)}
                 />
               </div>
 
@@ -764,7 +820,8 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
                   accept=".pdf,image/png,image/jpeg,image/jpg"
                   required={false}
                   doc={formData.academicTranscriptDoc}
-                  onChange={(doc) => handleInputChange('academicTranscriptDoc', doc)}
+                  onProcessingChange={handleProcessingChange}
+                  onChange={(doc) => handleAttachmentChange('academicTranscriptDoc', doc)}
                 />
               </div>
             </div>
@@ -1254,7 +1311,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
                       </label>
                     </div>
                     <p className="text-xs text-[#636366]">
-                      แนบหนังสือรับรองเงินเดือน/สลิปเงินเดือน หรือหนังสือรับรองรายได้ครอบครัว (สามารถใช้แบบฟอร์มเดียวกับ กยศ. ได้ หรือออกโดยผู้นำชุมชน/กำนัน/ผู้ใหญ่บ้าน/ข้าราชการ) ไฟล์ PDF, JPG, PNG (ไม่เกิน 10MB)
+                      แนบหนังสือรับรองเงินเดือน/สลิปเงินเดือน หรือหนังสือรับรองรายได้ครอบครัว (สามารถใช้แบบฟอร์มเดียวกับ กยศ. ได้ หรือออกโดยผู้นำชุมชน/กำนัน/ผู้ใหญ่บ้าน/ข้าราชการ) PDF ไม่เกิน 450 KB ต่อไฟล์ หรือภาพ JPG / PNG ซึ่งระบบจะย่อให้ ไฟล์แนบทั้งหมดรวมไม่เกิน 650 KB หลังประมวลผล
                     </p>
                   </div>
 
@@ -1274,78 +1331,14 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
                   </div>
                 </div>
 
-                {formData.incomeCertificateDoc ? (
-                  <div className="flex items-center justify-between p-3 bg-white rounded-[12px] border border-black/[0.08]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-[10px] bg-[#34C759]/15 text-[#248A3D] flex items-center justify-center">
-                        <FileCheck2 className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold text-[#1C1C1E] truncate max-w-[200px] sm:max-w-xs">
-                          {formData.incomeCertificateDoc.fileName}
-                        </div>
-                        <div className="text-[10px] text-[#248A3D] font-medium flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-[#34C759]" />
-                          <span>{(formData.incomeCertificateDoc.fileSize / 1024).toFixed(1)} KB • แนบเอกสารเรียบร้อยแล้ว</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange('incomeCertificateDoc', undefined)}
-                      className="p-1.5 text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors cursor-pointer"
-                      title="ลบไฟล์และอัปโหลดใหม่"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className={`relative border-2 border-dashed rounded-[14px] p-5 text-center transition-colors cursor-pointer group ${
-                    errors.incomeCertificateDoc
-                      ? 'border-[#d93025] bg-white'
-                      : 'border-[#007AFF]/30 hover:border-[#007AFF] bg-white'
-                  }`}>
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        if (file.size > 10 * 1024 * 1024) {
-                          alert('ขนาดไฟล์ต้องไม่เกิน 10MB');
-                          return;
-                        }
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          handleInputChange('incomeCertificateDoc', {
-                            fileName: file.name,
-                            fileSize: file.size,
-                            fileType: file.type,
-                            dataUrl: event.target?.result as string,
-                            uploadedAt: new Date().toISOString(),
-                          });
-                        };
-                        reader.readAsDataURL(file);
-                      }}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <div className="flex flex-col items-center gap-1.5">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                        errors.incomeCertificateDoc
-                          ? 'bg-[#d93025]/10 text-[#d93025]'
-                          : 'bg-[#007AFF]/10 group-hover:bg-[#007AFF]/20 text-[#007AFF]'
-                      }`}>
-                        <Upload className="w-5 h-5" />
-                      </div>
-                      <span className={`text-xs font-bold ${errors.incomeCertificateDoc ? 'text-[#d93025]' : 'text-[#007AFF]'}`}>
-                        คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่
-                      </span>
-                      <span className="text-[11px] text-[#8E8E93]">
-                        รองรับไฟล์ PDF, JPG, PNG ขนาดไม่เกิน 10MB
-                      </span>
-                    </div>
-                  </div>
-                )}
+                <DocumentUploader
+                  id="income-certificate-uploader"
+                  label="หนังสือรับรองรายได้ / สลิปเงินเดือน"
+                  required
+                  doc={formData.incomeCertificateDoc}
+                  onProcessingChange={handleProcessingChange}
+                  onChange={(doc) => handleAttachmentChange('incomeCertificateDoc', doc)}
+                />
 
                 {errors.incomeCertificateDoc && (
                   <p className="text-xs font-semibold text-[#d93025] flex items-center gap-1.5 pt-0.5">
@@ -1768,6 +1761,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
             <button
               type="button"
               onClick={handlePrev}
+              disabled={processingFiles > 0}
               className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full bg-white hover:bg-[#F2F2F7] text-[#1C1C1E] text-xs sm:text-sm font-semibold border border-[#dadce0] shadow-xs transition-all active:scale-95 cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -1781,6 +1775,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
             <button
               type="button"
               onClick={handleNext}
+              disabled={processingFiles > 0}
               className="inline-flex items-center gap-1.5 px-8 py-2.5 rounded-full bg-[#007AFF] hover:bg-[#0066d6] text-white text-xs sm:text-sm font-semibold shadow-md shadow-[#007AFF]/25 transition-all active:scale-95 cursor-pointer"
             >
               <span>ถัดไป (Mod {activeModule + 1})</span>
@@ -1789,13 +1784,15 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
           ) : (
             <button
               type="submit"
+              disabled={isSubmitting || processingFiles > 0}
               className="inline-flex items-center gap-2 px-9 py-3 rounded-full bg-[#34C759] hover:bg-[#2fb350] text-white text-sm font-bold shadow-lg shadow-[#34C759]/25 transition-all active:scale-95 cursor-pointer"
             >
               <Send className="w-4 h-4" />
-              <span>ยืนยันการสมัคร (Confirm Application)</span>
+              <span>{isSubmitting ? 'กำลังบันทึก…' : processingFiles > 0 ? 'กำลังประมวลผลไฟล์…' : 'ยืนยันการสมัคร (Confirm Application)'}</span>
             </button>
           )}
         </div>
+        </fieldset>
       </form>
     </div>
   );
