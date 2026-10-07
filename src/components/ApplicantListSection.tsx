@@ -22,6 +22,7 @@ interface ApplicantListSectionProps {
   applications: ScholarshipApplication[];
   onRefresh?: () => void;
   timelineConfig?: TimelineConfig;
+  isAdminLoggedIn?: boolean;
   onDeleteApplication?: (appId: string, studentId?: string) => Promise<void> | void;
 }
 
@@ -29,6 +30,7 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
   applications,
   onRefresh,
   timelineConfig,
+  isAdminLoggedIn = false,
   onDeleteApplication,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -272,11 +274,12 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
                 <tr className="bg-[#F2F2F7]/80 border-b border-black/[0.06] text-[12px] font-bold text-[#636366] uppercase tracking-wider">
                   <th className="py-3.5 px-4 text-center w-16">1. ลำดับ</th>
                   <th className="py-3.5 px-4">2. รหัสนิสิต</th>
-                  <th className="py-3.5 px-4">3. ชั้นปี</th>
-                  <th className="py-3.5 px-4">4. ภาควิชา/สถาน</th>
+                  <th className="py-3.5 px-4 min-w-[180px]">3. ชื่อ-สกุล</th>
+                  <th className="py-3.5 px-4">4. ชั้นปี</th>
+                  <th className="py-3.5 px-4">5. ภาควิชา/สถาน</th>
                   <th className="py-3.5 px-4 hidden sm:table-cell">วันที่ยื่นใบสมัคร</th>
                   <th className="py-3.5 px-4 text-center">สถานะ</th>
-                  <th className="py-3.5 px-4 text-center">การจัดการ</th>
+                  {isAdminLoggedIn && <th className="py-3.5 px-4 text-center">การจัดการ</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] text-xs sm:text-sm text-[#1C1C1E]">
@@ -310,7 +313,15 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
                         </div>
                       </td>
 
-                      {/* 3. ชั้นปี */}
+                      {/* 3. ชื่อ-สกุล */}
+                      <td className="py-4 px-4 min-w-[180px]">
+                        <div className="flex items-center gap-2 font-semibold text-[#1C1C1E]">
+                          <Users className="w-3.5 h-3.5 text-[#8E8E93] shrink-0" />
+                          <span>{app.fullName || '-'}</span>
+                        </div>
+                      </td>
+
+                      {/* 4. ชั้นปี */}
                       <td className="py-4 px-4">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] bg-[#F2F2F7] text-[#1C1C1E] font-medium text-xs">
                           <GraduationCap className="w-3.5 h-3.5 text-[#8E8E93]" />
@@ -318,7 +329,7 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
                         </span>
                       </td>
 
-                      {/* 4. ภาควิชา/สถาน */}
+                      {/* 5. ภาควิชา/สถาน */}
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-1.5 font-medium text-[#1C1C1E]">
                           <Building className="w-3.5 h-3.5 text-[#8E8E93] shrink-0" />
@@ -339,18 +350,20 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
                         {getStatusBadge(app.status)}
                       </td>
 
-                      {/* การจัดการ */}
-                      <td className="py-4 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(app)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors cursor-pointer"
-                          title="ลบข้อมูลผู้สมัครรายนี้ (ต้องใส่รหัสผ่าน 07011985)"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>ลบ</span>
-                        </button>
-                      </td>
+                      {/* การจัดการ (แอดมินเท่านั้น) */}
+                      {isAdminLoggedIn && (
+                        <td className="py-4 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(app)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors cursor-pointer"
+                            title="ลบข้อมูลผู้สมัครรายนี้ (ต้องใส่รหัสผ่าน 07011985)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>ลบ</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -397,19 +410,21 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
       </div>
 
       {/* Delete Applicant Modal with password 07011985 */}
-      <DeleteApplicantModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        application={deleteTarget}
-        onConfirmDelete={async () => {
-          if (!deleteTarget) return;
-          if (onDeleteApplication) {
-            await onDeleteApplication(deleteTarget.id, deleteTarget.studentId);
-          }
-          if (onRefresh) onRefresh();
-          setDeleteTarget(null);
-        }}
-      />
+      {isAdminLoggedIn && (
+        <DeleteApplicantModal
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          application={deleteTarget}
+          onConfirmDelete={async () => {
+            if (!deleteTarget) return;
+            if (onDeleteApplication) {
+              await onDeleteApplication(deleteTarget.id, deleteTarget.studentId);
+            }
+            if (onRefresh) onRefresh();
+            setDeleteTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 };
