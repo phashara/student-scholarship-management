@@ -48,24 +48,34 @@ export function formatThaiDateTime(dateStr?: string | null): string {
   // 2. Try parsing with standard Date (ISO string or standard date)
   const parsed = new Date(trimmed);
   if (!isNaN(parsed.getTime())) {
-    const fullYear = parsed.getFullYear();
-    // If browser added 543 to an already-Buddhist year (e.g. > 3000), correct it
-    if (fullYear > 3000) {
-      parsed.setFullYear(fullYear - 543);
-    } else if (fullYear > 2500) {
-      // It was treated as year 2569 CE, so convert it down to CE 2026
-      parsed.setFullYear(fullYear - 543);
-    }
-
-    return (
-      parsed.toLocaleDateString('th-TH', {
+    try {
+      const formatted = parsed.toLocaleString('th-TH', {
+        timeZone: 'Asia/Bangkok',
         day: 'numeric',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-      }) + ' น.'
-    );
+        hour12: false,
+      });
+
+      // If browser added 543 to an already-Buddhist year (e.g. > 3000), correct it
+      const yearMatch = formatted.match(/\b(\d{4})\b/);
+      if (yearMatch && parseInt(yearMatch[1], 10) > 3000) {
+        const wrongYear = parseInt(yearMatch[1], 10);
+        const correctYear = wrongYear - 543;
+        const fixedFormatted = formatted.replace(yearMatch[1], String(correctYear));
+        return `${fixedFormatted} น.`;
+      }
+
+      return `${formatted} น.`;
+    } catch {
+      return parsed.toLocaleDateString('th-TH', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    }
   }
 
   return trimmed;

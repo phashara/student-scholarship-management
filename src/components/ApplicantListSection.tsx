@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ScholarshipApplication, TimelineConfig } from '../types';
+import { formatThaiDateTime } from '../utils/dateUtils';
 import { DeleteApplicantModal } from './DeleteApplicantModal';
 
 interface ApplicantListSectionProps {
@@ -284,15 +285,7 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
               </thead>
               <tbody className="divide-y divide-black/[0.04] text-xs sm:text-sm text-[#1C1C1E]">
                 {filteredApps.map((app, index) => {
-                  const submitDate = app.createdAt
-                    ? new Date(app.createdAt).toLocaleDateString('th-TH', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : '-';
+                  const submitDate = formatThaiDateTime(app.createdAt);
 
                   return (
                     <tr

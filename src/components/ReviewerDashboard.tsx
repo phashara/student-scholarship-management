@@ -47,6 +47,7 @@ import {
   saveTimelineConfigOnline,
 } from '../services/firebaseService';
 import { ScholarshipApplication, ScoreBreakdown, TimelineConfig } from '../types';
+import { formatThaiDateTime, parseDateTimestamp } from '../utils/dateUtils';
 import { AdminEditApplicantModal } from './AdminEditApplicantModal';
 import { DeleteApplicantModal } from './DeleteApplicantModal';
 import { ItemizedScoreModal } from './ItemizedScoreModal';
@@ -198,7 +199,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
         if (sortByScoreDesc) {
           return b.score.totalScore - a.score.totalScore;
         }
-        return new Date(b.app.createdAt).getTime() - new Date(a.app.createdAt).getTime();
+        return parseDateTimestamp(b.app.createdAt) - parseDateTimestamp(a.app.createdAt);
       });
   }, [
     appsWithScores,
@@ -302,7 +303,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
     const rows = filteredApps.map(({ app, score }) => [
       `"${app.id}"`,
       `"${app.academicYear || '2569'}"`,
-      `"${app.createdAt}"`,
+      `"${formatThaiDateTime(app.createdAt)}"`,
       `"${app.status}"`,
       `"${score.totalScore}"`,
       `"${score.priorityLabel}"`,
@@ -674,6 +675,8 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                               <span>{app.phone || '-'}</span>
                               <span>•</span>
                               <span>{app.id}</span>
+                              <span>•</span>
+                              <span>ยื่นเมื่อ: {formatThaiDateTime(app.createdAt)}</span>
                               {applications.some(
                                 (other) =>
                                   other.id !== app.id &&
