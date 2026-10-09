@@ -71,7 +71,4 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
-// Initial test trigger
-testConnection().catch(() => {
-  // connection check silent catch
-});
+// Actual data requests report connection errors. Avoid a billed probe on every visit.
