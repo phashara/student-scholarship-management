@@ -53,10 +53,15 @@ export function prepareSubmission(draft: Partial<ScholarshipApplication>, academ
 
 export function submissionErrorMessage(error: unknown): string {
   const code = String((error as { code?: string })?.code || '');
-  if (/unavailable|deadline-exceeded|network-request-failed/.test(code)) {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (/unavailable|deadline-exceeded|network-request-failed/.test(code) || /offline|network/i.test(msg)) {
     return 'ยังยืนยันการบันทึกไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วกดลองส่งอีกครั้ง ระบบจะใช้เลขใบสมัครเดิมเพื่อป้องกันข้อมูลซ้ำ';
   }
-  if (code.includes('permission-denied')) return 'ฐานข้อมูลไม่อนุญาตให้บันทึก กรุณาติดต่อเจ้าหน้าที่ โทร. 055-961911 ข้อมูลที่กรอกยังอยู่ในหน้านี้';
-  if (code.includes('resource-exhausted')) return 'ระบบรับข้อมูลไม่สำเร็จในขณะนี้ กรุณาลองใหม่หรือติดต่อเจ้าหน้าที่ โทร. 055-961911';
+  if (code.includes('permission-denied') || msg.includes('permission-denied')) {
+    return 'ฐานข้อมูลไม่อนุญาตให้บันทึก กรุณาติดต่อเจ้าหน้าที่ โทร. 055-961911 ข้อมูลที่กรอกยังอยู่ในหน้านี้';
+  }
+  if (code.includes('resource-exhausted') || /quota/i.test(msg)) {
+    return 'ระบบฐานข้อมูลมีผู้ใช้งานเต็มโควตาของวันนี้ กรุณาติดต่อเจ้าหน้าที่ โทร. 055-961911 หรือลองใหม่อีกครั้ง ข้อมูลที่กรอกยังอยู่ในหน้านี้';
+  }
   return error instanceof Error ? error.message : 'ส่งใบสมัครไม่สำเร็จ กรุณาลองอีกครั้ง ข้อมูลที่กรอกยังอยู่ครบ';
 }
