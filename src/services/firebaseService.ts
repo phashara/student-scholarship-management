@@ -32,6 +32,14 @@ const TIMELINE_DOC_ID = 'nu_socsci_2569';
 const normalizeApplicationId = (id: string) => id.replace(/^APP-/, 'FSS-');
 const pendingDeletedApplicationIds = new Set<string>();
 
+export type ApplicationReadStatus = 'idle' | 'loading' | 'cache' | 'server' | 'quota-exceeded' | 'error';
+
+export function firestoreReadErrorStatus(error: unknown): 'quota-exceeded' | 'error' {
+  const candidate = error as { code?: string; message?: string } | null;
+  return /resource-exhausted|quota|RESOURCE_EXHAUSTED/i.test(`${candidate?.code || ''} ${candidate?.message || String(error)}`)
+    ? 'quota-exceeded' : 'error';
+}
+
 export const DEMO_APP_IDS = new Set([
   'FSS-2569-001',
   'FSS-2569-002',
@@ -63,7 +71,8 @@ export function sanitizeForFirestore(obj: Record<string, any>): Record<string, a
  */
 export function subscribeApplications(
   onUpdate: (apps: ScholarshipApplication[]) => void,
-  onError?: (err: unknown) => void
+  onError?: (err: unknown) => void,
+  onStatus?: (status: ApplicationReadStatus) => void
 ): () => void {
   const appsRef = collection(db, APPLICATIONS_COLLECTION);
 
@@ -73,6 +82,12 @@ export function subscribeApplications(
     { includeMetadataChanges: true },
     (snapshot) => {
       if (snapshot.metadata.hasPendingWrites) return;
+      // Firestore's in-memory cache may be empty or only contain one recently
+      // submitted application. It is never authoritative for the full register.
+      if (snapshot.metadata.fromCache) {
+        onStatus?.('cache');
+        return;
+      }
       const remoteApps: ScholarshipApplication[] = [];
       const snapshotIds = new Set<string>();
 
@@ -122,9 +137,11 @@ export function subscribeApplications(
       }
 
       onUpdate(remoteApps);
+      onStatus?.('server');
     },
     (error) => {
       handleFirestoreError(error, OperationType.GET, APPLICATIONS_COLLECTION);
+      onStatus?.(firestoreReadErrorStatus(error));
       if (onError) onError(error);
       // Fallback to local storage only if offline
       onUpdate(loadLocalApplications().filter((a) => !DEMO_APP_IDS.has(a.id)));
@@ -285,13 +302,15 @@ export async function deleteApplicationOnline(appId: string, studentId?: string)
  * Subscribe to real-time timeline configuration
  */
 export function subscribeTimelineConfig(
-  onUpdate: (config: TimelineConfig) => void
+  onUpdate: (config: TimelineConfig) => void,
+  onError?: (err: unknown) => void
 ): () => void {
   const docRef = doc(db, TIMELINE_COLLECTION, TIMELINE_DOC_ID);
 
   const unsubscribe = onSnapshot(
     docRef,
     (snapshot) => {
+      if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
       if (snapshot.exists()) {
         const data = snapshot.data() as TimelineConfig;
         saveLocalTimelineConfig(data);
@@ -299,12 +318,12 @@ export function subscribeTimelineConfig(
       } else {
         const local = loadLocalTimelineConfig();
         onUpdate(local);
-        // Save initial to cloud
-        setDoc(docRef, sanitizeForFirestore(local)).catch(() => {});
+        // Reading the schedule must not create or overwrite cloud data.
       }
     },
     (error) => {
       handleFirestoreError(error, OperationType.GET, `${TIMELINE_COLLECTION}/${TIMELINE_DOC_ID}`);
+      onError?.(error);
       onUpdate(loadLocalTimelineConfig());
     }
   );

@@ -23,6 +23,7 @@ import { ScholarshipApplication, TimelineConfig } from '../types';
 
 interface StatusTrackerProps {
   applications: ScholarshipApplication[];
+  applicationsAreCurrent?: boolean;
   onViewApplication: (app: ScholarshipApplication) => void;
   initialQuery?: string;
   timelineConfig?: TimelineConfig;
@@ -30,6 +31,7 @@ interface StatusTrackerProps {
 
 export const StatusTracker: React.FC<StatusTrackerProps> = ({
   applications,
+  applicationsAreCurrent = true,
   onViewApplication,
   initialQuery = '',
   timelineConfig,
@@ -304,10 +306,12 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-bold text-[#1C1C1E] font-['Prompt',sans-serif]">
-                ไม่พบข้อมูลใบสมัคร
+                {applicationsAreCurrent ? 'ไม่พบข้อมูลใบสมัคร' : 'ยังยืนยันผลการค้นหาไม่ได้'}
               </h3>
               <p className="text-xs sm:text-sm text-[#8E8E93] max-w-md mx-auto">
-                ไม่พบข้อมูลที่ตรงกับคำค้นหา "{query}" โปรดตรวจสอบรหัสนิสิตให้ถูกต้อง หรือหากยังไม่ได้ยื่นคำขอ สามารถกรอกใบสมัครได้ที่แท็บ "กรอกใบสมัคร"
+                {applicationsAreCurrent
+                  ? `ไม่พบข้อมูลที่ตรงกับคำค้นหา "${query}" โปรดตรวจสอบรหัสนิสิตหรือเลขที่ใบสมัคร หากสมัครแล้วกรุณาติดต่อ 055-961911`
+                  : 'ข้อมูลในเครื่องอาจไม่ครบ กรุณารอเชื่อมต่อฐานข้อมูลอีกครั้ง ไม่ต้องสมัครซ้ำเพียงเพราะยังไม่พบชื่อ'}
               </p>
             </div>
           )}

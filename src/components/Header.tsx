@@ -32,6 +32,7 @@ interface HeaderProps {
   onAdminLogin?: () => void;
   onAdminLogout?: () => void;
   isCloudConnected?: boolean;
+  cloudStatusText?: string;
   timelineConfig?: TimelineConfig;
 }
 
@@ -44,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   onAdminLogin,
   onAdminLogout,
   isCloudConnected = true,
+  cloudStatusText,
   timelineConfig,
 }) => {
   const [islandExpanded, setIslandExpanded] = useState(false);
@@ -155,10 +157,10 @@ export const Header: React.FC<HeaderProps> = ({
                         ? 'bg-[#34C759]/10 text-[#248A3D] border-[#34C759]/25'
                         : 'bg-[#FF9500]/10 text-[#FF9500] border-[#FF9500]/25'
                     }`}
-                    title={isCloudConnected ? 'เชื่อมต่อฐานข้อมูล Firebase Firestore ออนไลน์' : 'กำลังซิงค์ข้อมูลกับคลาวด์'}
+                    title={cloudStatusText || (isCloudConnected ? 'เชื่อมต่อฐานข้อมูล Firebase Firestore ออนไลน์' : 'ยังยืนยันข้อมูลล่าสุดไม่ได้')}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${isCloudConnected ? 'bg-[#34C759] animate-pulse' : 'bg-[#FF9500]'}`} />
-                    <span>{isCloudConnected ? 'Firebase ออนไลน์' : 'ออฟไลน์'}</span>
+                    <span>{cloudStatusText || (isCloudConnected ? 'Firebase ออนไลน์' : 'ยังยืนยันข้อมูลล่าสุดไม่ได้')}</span>
                   </span>
                 </div>
                 <p className="text-[11px] sm:text-[12px] text-[#8E8E93] leading-none mt-0.5 sm:mt-1 truncate max-w-[210px] sm:max-w-none">
@@ -439,4 +441,3 @@ export const Header: React.FC<HeaderProps> = ({
     </>
   );
 };
-

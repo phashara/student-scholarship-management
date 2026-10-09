@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Award,
   Calendar,
@@ -35,6 +35,8 @@ import {
   saveTimelineConfigOnline,
   subscribeApplications,
   subscribeTimelineConfig,
+  firestoreReadErrorStatus,
+  ApplicationReadStatus,
 } from './services/firebaseService';
 import { ScholarshipApplication, TimelineConfig } from './types';
 
@@ -45,41 +47,52 @@ export default function App() {
   const [selectedApplication, setSelectedApplication] = useState<ScholarshipApplication | null>(null);
   const [trackingInitialQuery, setTrackingInitialQuery] = useState<string>('');
   const [isScoringModalOpen, setIsScoringModalOpen] = useState<boolean>(false);
-  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(true);
+  const [applicationReadStatus, setApplicationReadStatus] = useState<ApplicationReadStatus>('idle');
+  const [timelineError, setTimelineError] = useState<'quota-exceeded' | 'error' | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const lastRefresh = useRef(0);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
     return sessionStorage.getItem('socsci_admin_auth') === 'true';
   });
   const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState<boolean>(false);
+  const needsApplications = ['announcements', 'status', 'applicants', 'admin'].includes(activeTab);
+  const hasReadError = applicationReadStatus === 'quota-exceeded' || applicationReadStatus === 'error' || !!timelineError;
+  const quotaExceeded = applicationReadStatus === 'quota-exceeded' || timelineError === 'quota-exceeded';
+  const applicationsAreCurrent = applicationReadStatus === 'server';
 
   useEffect(() => {
     // Initial immediate load from local storage
     setApplications(loadApplications());
     setTimelineConfig(loadTimelineConfig());
 
-    // Subscribe to real-time live applications from Firebase Firestore
-    const unsubscribeApps = subscribeApplications(
-      (remoteApps) => {
-        setApplications(remoteApps);
-        setIsCloudConnected(true);
-      },
-      () => {
-        setIsCloudConnected(false);
-      }
-    );
-
-    // Subscribe to real-time timeline & schedule configuration from Firebase Firestore
-    const unsubscribeTimeline = subscribeTimelineConfig((remoteConfig) => {
-      setTimelineConfig(remoteConfig);
-    });
-
-    return () => {
-      unsubscribeApps();
-      unsubscribeTimeline();
-    };
+    // The form and schedule do not need to download every applicant's attachments.
   }, []);
 
+  useEffect(() => {
+    if (!needsApplications) return;
+    setApplicationReadStatus('loading');
+    const unsubscribeApps = subscribeApplications(
+      setApplications,
+      undefined,
+      setApplicationReadStatus
+    );
+    return unsubscribeApps;
+  }, [needsApplications, refreshVersion]);
+
+  useEffect(() => {
+    const unsubscribeTimeline = subscribeTimelineConfig((remoteConfig) => {
+      setTimelineConfig(remoteConfig);
+    }, (error) => setTimelineError(firestoreReadErrorStatus(error)));
+    return unsubscribeTimeline;
+  }, [refreshVersion]);
+
   const refreshApplications = () => {
+    // A deliberate retry reattaches failed listeners. Avoid rapid repeated reads.
+    if (Date.now() - lastRefresh.current < 15000) return;
+    lastRefresh.current = Date.now();
     setApplications(loadApplications());
+    setTimelineError(null);
+    setRefreshVersion(version => version + 1);
   };
 
   const handleDeleteApplication = async (appId: string, studentId?: string) => {
@@ -134,17 +147,33 @@ export default function App() {
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        applicationCount={applications.length}
+        applicationCount={applicationsAreCurrent ? applications.length : undefined}
         onOpenScoringModal={() => setIsScoringModalOpen(true)}
         isAdminLoggedIn={isAdminLoggedIn}
         onAdminLogin={() => setIsAdminLoggedIn(true)}
         onAdminLogout={handleAdminLogout}
-        isCloudConnected={isCloudConnected}
+        isCloudConnected={applicationsAreCurrent && !hasReadError}
+        cloudStatusText={hasReadError ? (quotaExceeded ? 'โควตาฐานข้อมูลเต็ม' : 'ยังอ่านข้อมูลล่าสุดไม่ได้') : applicationsAreCurrent ? 'ยืนยันรายชื่อจากฐานข้อมูลแล้ว' : needsApplications ? 'กำลังตรวจสอบรายชื่อ' : 'ตรวจรายชื่อเมื่อเปิดรายการ'}
         timelineConfig={timelineConfig}
       />
 
       {/* Main Content Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-28 md:pb-8">
+        {(hasReadError || (needsApplications && !applicationsAreCurrent)) && (
+          <div role="status" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 space-y-2">
+            <p className="font-bold">{hasReadError ? (quotaExceeded ? 'ฐานข้อมูลถึงโควตาการใช้งานชั่วคราว' : 'ยังเชื่อมต่อฐานข้อมูลเพื่ออ่านรายชื่อไม่ได้') : 'กำลังตรวจสอบรายชื่อจากฐานข้อมูล'}</p>
+            <p>{applications.length > 0 ? `กำลังแสดงข้อมูลเดิมในเครื่อง ${applications.length} ราย ข้อมูลอาจยังไม่ครบหรือไม่เป็นปัจจุบัน` : 'ยังยืนยันจำนวนและรายชื่อผู้สมัครไม่ได้ จึงไม่สามารถสรุปได้ว่าไม่มีผู้สมัครหรือข้อมูลถูกลบ'}</p>
+            <p>ผู้ที่สมัครแล้วควรเก็บเลขที่ใบสมัครไว้ หากยังไม่พบชื่อไม่ต้องสมัครซ้ำทันที ติดต่อ 055-961911 เพื่อตรวจสอบ การสมัครใหม่จะสำเร็จต่อเมื่อฐานข้อมูลยืนยันการบันทึกเท่านั้น</p>
+            <button type="button" onClick={refreshApplications} className="rounded-full bg-amber-900 px-4 py-2 text-white">ลองเชื่อมต่อฐานข้อมูลอีกครั้ง</button>
+            <span className="ml-3 text-xs">ลองใหม่ได้ทุก 15 วินาที</span>
+          </div>
+        )}
+        {needsApplications && !applicationsAreCurrent && applications.length === 0 ? (
+          <div className="rounded-2xl bg-white p-8 text-center border border-black/10">
+            <h2 className="font-bold text-lg">ยังแสดงข้อมูลผู้สมัครไม่ได้</h2>
+            <p className="mt-2 text-sm">รอการเชื่อมต่อฐานข้อมูลสำเร็จ หรือใช้ปุ่มลองเชื่อมต่อด้านบน</p>
+          </div>
+        ) : <>
         {activeTab === 'form' && (
           <ScholarshipForm
             onSubmitSuccess={handleApplicationSubmitted}
@@ -173,6 +202,7 @@ export default function App() {
         {activeTab === 'status' && (
           <StatusTracker
             applications={applications}
+            applicationsAreCurrent={applicationsAreCurrent}
             onViewApplication={(app) => setSelectedApplication(app)}
             initialQuery={trackingInitialQuery}
             timelineConfig={timelineConfig}
@@ -222,6 +252,7 @@ export default function App() {
             </div>
           )
         )}
+        </>}
       </main>
 
       {/* iOS Mobile Floating Bottom Tab Bar (Dock) */}
