@@ -91,6 +91,30 @@
     page-break-inside: avoid !important;
   }
 
+  /* Strict physical sizing for student passport photo (1 - 1.5 inches: 26mm x 34mm) */
+  .student-photo-container {
+    width: 26mm !important;
+    height: 34mm !important;
+    min-width: 26mm !important;
+    max-width: 26mm !important;
+    min-height: 34mm !important;
+    max-height: 34mm !important;
+    overflow: hidden !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+  }
+
+  .student-passport-photo {
+    width: 26mm !important;
+    height: 34mm !important;
+    min-width: 26mm !important;
+    max-width: 26mm !important;
+    min-height: 34mm !important;
+    max-height: 34mm !important;
+    object-fit: cover !important;
+    display: block !important;
+  }
+
   /* Preserve web colors, card borders, and tints in print */
   * {
     -webkit-print-color-adjust: exact !important;

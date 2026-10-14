@@ -281,7 +281,28 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
               break-before: page !important;
               page-break-before: always !important;
             }
-            img { max-width: 100%; height: auto; }
+            img:not(.student-passport-photo) { max-width: 100%; height: auto; }
+            .student-photo-container {
+              width: 26mm !important;
+              height: 34mm !important;
+              min-width: 26mm !important;
+              max-width: 26mm !important;
+              min-height: 34mm !important;
+              max-height: 34mm !important;
+              overflow: hidden !important;
+              border-radius: 6px !important;
+              box-shadow: none !important;
+            }
+            .student-passport-photo {
+              width: 26mm !important;
+              height: 34mm !important;
+              min-width: 26mm !important;
+              max-width: 26mm !important;
+              min-height: 34mm !important;
+              max-height: 34mm !important;
+              object-fit: cover !important;
+              display: block !important;
+            }
             img.print-page-img {
               max-width: 100% !important;
               height: auto !important;
@@ -421,20 +442,50 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
               Module 1 : ข้อมูลส่วนตัวของนิสิต
             </h4>
             <div className="flex flex-row gap-4 items-start">
-              {/* 📷 รูปถ่ายนิสิตที่ Upload - ขนาดรูปติดบัตร 1 - 1.5 นิ้ว ไม่ใหญ่เทอะทะ */}
+              {/* 📷 รูปถ่ายนิสิตที่ Upload - ขนาดรูปติดบัตร 1 - 1.5 นิ้ว (26mm x 34mm) ไม่ใหญ่เทอะทะ */}
               <div className="shrink-0 flex flex-col items-center">
                 {application.studentPhotoDoc?.dataUrl ? (
-                  <div className="w-20 h-26 sm:w-22 sm:h-28 print:w-18 print:h-24 rounded-[8px] overflow-hidden border border-black/20 shadow-xs bg-[#F2F2F7]">
+                  <div
+                    className="student-photo-container rounded-[8px] overflow-hidden border border-black/20 shadow-xs bg-[#F2F2F7]"
+                    style={{
+                      width: '26mm',
+                      height: '34mm',
+                      minWidth: '26mm',
+                      maxWidth: '26mm',
+                      minHeight: '34mm',
+                      maxHeight: '34mm',
+                    }}
+                  >
                     <img
                       src={application.studentPhotoDoc.dataUrl}
                       alt={application.fullName}
-                      className="w-full h-full object-cover"
+                      className="student-passport-photo w-full h-full object-cover"
+                      style={{
+                        width: '26mm',
+                        height: '34mm',
+                        minWidth: '26mm',
+                        maxWidth: '26mm',
+                        minHeight: '34mm',
+                        maxHeight: '34mm',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
                     />
                   </div>
                 ) : (
-                  <div className="w-20 h-26 sm:w-22 sm:h-28 print:w-18 print:h-24 rounded-[8px] border border-dashed border-[#8E8E93]/40 flex flex-col items-center justify-center p-1.5 text-center bg-[#F8F9FA]">
-                    <User className="w-6 h-6 text-[#8E8E93]/40 mb-1" />
-                    <span className="text-[9px] text-[#8E8E93] leading-tight">
+                  <div
+                    className="student-photo-container rounded-[8px] border border-dashed border-[#8E8E93]/40 flex flex-col items-center justify-center p-1 text-center bg-[#F8F9FA]"
+                    style={{
+                      width: '26mm',
+                      height: '34mm',
+                      minWidth: '26mm',
+                      maxWidth: '26mm',
+                      minHeight: '34mm',
+                      maxHeight: '34mm',
+                    }}
+                  >
+                    <User className="w-5 h-5 text-[#8E8E93]/40 mb-1" />
+                    <span className="text-[8px] text-[#8E8E93] leading-tight">
                       รูปถ่ายนิสิต<br />(หน้าตรง)
                     </span>
                   </div>
@@ -645,8 +696,8 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
             </div>
           </div>
 
-          {/* Signature & Endorsement Sign-offs */}
-          <div className="pt-4 border-t border-black/15 page-break-inside-avoid space-y-3 print:space-y-2">
+          {/* Digital Certification Sign-off (ยืนยันผ่านระบบรับสมัครทุนออนไลน์) */}
+          <div className="pt-3 border-t border-black/15 page-break-inside-avoid">
             <div className="bg-[#F8F9FA] p-2.5 print:p-2 rounded-[10px] border border-black/[0.06] text-xs print:text-[8pt] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#34C759] shrink-0" />
@@ -659,35 +710,8 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 (ยืนยันเมื่อ {formatThaiDateTime(application.createdAt)})
               </span>
             </div>
-
-            <div className="p-3.5 print:p-3 bg-white rounded-[12px] border border-black/10 space-y-4 print:space-y-3 text-xs print:text-[8pt]">
-              <div className="flex items-center justify-between border-b border-black/10 pb-1.5">
-                <span className="font-bold text-xs sm:text-sm font-['Prompt',sans-serif] text-[#1C1C1E] print:text-[9pt]">
-                  ความเห็นจากภาควิชา/สถาน
-                </span>
-                <span className="text-[10px] text-[#8E8E93] print:text-[7.5pt]">
-                  (สำหรับหัวหน้าภาควิชา / ประธานหลักสูตร / อาจารย์ที่ปรึกษา)
-                </span>
-              </div>
-
-              <div className="space-y-3 print:space-y-2 pt-1">
-                <div className="border-b border-dotted border-black/40 h-5" />
-                <div className="border-b border-dotted border-black/40 h-5" />
-                <div className="border-b border-dotted border-black/40 h-5" />
-              </div>
-
-              <div className="text-right pt-2 space-y-4 max-w-xs ml-auto">
-                <div className="border-b border-black/40 w-52 ml-auto" />
-                <p className="text-center text-xs print:text-[8pt]">
-                  ลงชื่อ (.......................................................)
-                  <br />
-                  <span className="text-[10px] text-[#636366] print:text-[7.5pt]">หัวหน้าภาควิชา/สถาน หรือ ผู้แทน</span>
-                  <br />
-                  วันที่ ...... / ...... / ............
-                </p>
-              </div>
-            </div>
           </div>
+
 
 
           {/* ================================================================ */}

@@ -117,17 +117,17 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
             }
             body {
               margin: 0;
-              padding: 10mm 12mm;
+              padding: 0;
               font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              font-size: 11pt;
+              font-size: 8.5pt;
               color: #1C1C1E;
               background: #ffffff;
-              line-height: 1.45;
+              line-height: 1.35;
             }
             .print\\:hidden { display: none !important; }
             @page {
               size: A4 portrait;
-              margin: 8mm;
+              margin: 8mm 10mm;
             }
             .page-break-inside-avoid {
               break-inside: avoid !important;
@@ -137,11 +137,31 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
               break-before: page !important;
               page-break-before: always !important;
             }
-            img { max-width: 100%; height: auto; }
+            img:not(.student-passport-photo) { max-width: 100%; height: auto; }
+            .student-photo-container {
+              width: 24mm !important;
+              height: 30mm !important;
+              min-width: 24mm !important;
+              max-width: 24mm !important;
+              min-height: 30mm !important;
+              max-height: 30mm !important;
+              overflow: hidden !important;
+              border-radius: 6px !important;
+            }
+            .student-passport-photo {
+              width: 24mm !important;
+              height: 30mm !important;
+              min-width: 24mm !important;
+              max-width: 24mm !important;
+              min-height: 30mm !important;
+              max-height: 30mm !important;
+              object-fit: cover !important;
+              display: block !important;
+            }
           </style>
         </head>
         <body>
-          <div id="printable-itemized-score-sheet" class="space-y-6">
+          <div id="printable-itemized-score-sheet" class="space-y-4 text-[8.5pt]">
             ${printContent.innerHTML}
           </div>
         </body>
@@ -252,17 +272,47 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
               {/* Student Photo */}
               <div className="shrink-0">
                 {application.studentPhotoDoc?.dataUrl ? (
-                  <div className="w-20 h-24 rounded-[12px] overflow-hidden border border-black/10 shadow-xs bg-[#F2F2F7]">
+                  <div
+                    className="student-photo-container rounded-[8px] overflow-hidden border border-black/10 shadow-xs bg-[#F2F2F7]"
+                    style={{
+                      width: '24mm',
+                      height: '30mm',
+                      minWidth: '24mm',
+                      maxWidth: '24mm',
+                      minHeight: '30mm',
+                      maxHeight: '30mm',
+                    }}
+                  >
                     <img
                       src={application.studentPhotoDoc.dataUrl}
                       alt={application.fullName}
-                      className="w-full h-full object-cover"
+                      className="student-passport-photo w-full h-full object-cover"
+                      style={{
+                        width: '24mm',
+                        height: '30mm',
+                        minWidth: '24mm',
+                        maxWidth: '24mm',
+                        minHeight: '30mm',
+                        maxHeight: '30mm',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
                     />
                   </div>
                 ) : (
-                  <div className="w-20 h-24 rounded-[12px] border border-dashed border-[#8E8E93]/40 flex flex-col items-center justify-center p-1 text-center bg-[#F8F9FA] text-[#8E8E93]">
-                    <User className="w-6 h-6 text-[#8E8E93]/50" />
-                    <span className="text-[9px] mt-1 text-[#8E8E93]">ไม่มีรูปถ่าย</span>
+                  <div
+                    className="student-photo-container rounded-[8px] border border-dashed border-[#8E8E93]/40 flex flex-col items-center justify-center p-1 text-center bg-[#F8F9FA] text-[#8E8E93]"
+                    style={{
+                      width: '24mm',
+                      height: '30mm',
+                      minWidth: '24mm',
+                      maxWidth: '24mm',
+                      minHeight: '30mm',
+                      maxHeight: '30mm',
+                    }}
+                  >
+                    <User className="w-5 h-5 text-[#8E8E93]/50" />
+                    <span className="text-[8px] mt-0.5 text-[#8E8E93]">ไม่มีรูปถ่าย</span>
                   </div>
                 )}
               </div>
