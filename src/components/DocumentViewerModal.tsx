@@ -10,6 +10,7 @@ import {
   ZoomOut,
   Maximize2,
   AlertCircle,
+  Printer,
 } from 'lucide-react';
 import { AttachedDoc } from '../types';
 import {
@@ -19,6 +20,7 @@ import {
   isPdfDocument,
   openDocumentInNewTab,
 } from '../utils/documentViewer';
+import { printDirectPdf } from '../utils/pdfRenderer';
 
 interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -151,6 +153,25 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             >
               <ExternalLink className="w-3.5 h-3.5 text-[#007AFF]" />
               <span className="hidden md:inline">เปิดในแท็บใหม่</span>
+            </button>
+
+            {/* Print Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isPdf && document.dataUrl) {
+                  printDirectPdf(document.dataUrl);
+                } else if (blobUrl) {
+                  printDirectPdf(blobUrl);
+                } else {
+                  window.print();
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#D26900] transition-colors cursor-pointer"
+              title="สั่งพิมพ์ไฟล์เอกสารนี้"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">พิมพ์</span>
             </button>
 
             {/* Download Button */}

@@ -12,6 +12,11 @@
 
 /* Print Styles for Official Application Slip */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
   html, body {
     height: auto !important;
     overflow: visible !important;
@@ -56,13 +61,13 @@
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 10mm 12mm !important;
+    padding: 0 !important;
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #1C1C1E !important;
     box-shadow: none !important;
     border: none !important;
-    font-size: 11pt !important;
-    line-height: 1.4 !important;
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
   }
 
   /* Page break rules */
@@ -76,9 +81,20 @@
     page-break-before: always !important;
   }
 
-  /* Background color rendering */
+  /* Ensure attached document images scale properly to A4 width */
+  img.print-page-img {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Preserve web colors, card borders, and tints in print */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 }
+

@@ -21,6 +21,11 @@ import {
   downloadDocument,
   openDocumentInNewTab,
 } from '../utils/documentViewer';
+import {
+  renderPdfPages,
+  RenderedPdfPage,
+  printDirectPdf,
+} from '../utils/pdfRenderer';
 
 interface ApplicationSlipModalProps {
   application: ScholarshipApplication | null;
@@ -49,7 +54,7 @@ const InlinePdfViewer: React.FC<{
 
   return (
     <div className="space-y-3 pt-1">
-      <div className="p-4 bg-[#F8F9FA] rounded-[16px] border border-black/10 flex flex-wrap items-center justify-between gap-3">
+      <div className="p-3 sm:p-4 bg-[#F8F9FA] rounded-[16px] border border-black/10 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <div
             className={`w-9 h-9 rounded-[10px] flex items-center justify-center font-bold text-xs ${
@@ -83,12 +88,22 @@ const InlinePdfViewer: React.FC<{
 
           <button
             type="button"
+            onClick={() => printDirectPdf(doc.dataUrl)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#D26900] transition-colors cursor-pointer"
+            title="พิมพ์เฉพาะไฟล์ PDF นี้โดยตรง"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>พิมพ์ PDF นี้</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => openDocumentInNewTab(doc)}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-colors cursor-pointer"
             title="เปิดอ่านในแท็บใหม่ของเบราว์เซอร์"
           >
             <ExternalLink className="w-3.5 h-3.5 text-[#007AFF]" />
-            <span>เปิดในแท็บใหม่</span>
+            <span>แท็บใหม่</span>
           </button>
 
           <button
@@ -136,16 +151,67 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
   const [printNotice, setPrintNotice] = useState<string | null>(null);
   const [viewingDoc, setViewingDoc] = useState<{ doc: AttachedDoc; title: string } | null>(null);
 
+  // Rendered PDF pages for direct in-slip multi-page viewing and unified print
+  const [transcriptPages, setTranscriptPages] = useState<RenderedPdfPage[]>([]);
+  const [incomePages, setIncomePages] = useState<RenderedPdfPage[]>([]);
+  const [isLoadingPdfPages, setIsLoadingPdfPages] = useState<boolean>(false);
+
   if (!application) return null;
+
+  const isIncomeDocImage =
+    application.incomeCertificateDoc?.fileType?.startsWith('image/') ||
+    application.incomeCertificateDoc?.dataUrl?.startsWith('data:image/');
+
+  const isTranscriptDocImage =
+    application.academicTranscriptDoc?.fileType?.startsWith('image/') ||
+    application.academicTranscriptDoc?.dataUrl?.startsWith('data:image/');
+
+  // Convert attached PDF documents to rendered high-res pages so they print natively with the slip
+  useEffect(() => {
+    let isMounted = true;
+    async function loadPdfPages() {
+      setIsLoadingPdfPages(true);
+      try {
+        if (application?.academicTranscriptDoc?.dataUrl && !isTranscriptDocImage) {
+          const pages = await renderPdfPages(application.academicTranscriptDoc.dataUrl, 8);
+          if (isMounted) setTranscriptPages(pages);
+        } else {
+          if (isMounted) setTranscriptPages([]);
+        }
+
+        if (application?.incomeCertificateDoc?.dataUrl && !isIncomeDocImage) {
+          const pages = await renderPdfPages(application.incomeCertificateDoc.dataUrl, 8);
+          if (isMounted) setIncomePages(pages);
+        } else {
+          if (isMounted) setIncomePages([]);
+        }
+      } catch (err) {
+        console.warn('PDF rendering error:', err);
+      } finally {
+        if (isMounted) setIsLoadingPdfPages(false);
+      }
+    }
+
+    loadPdfPages();
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    application?.id,
+    application?.academicTranscriptDoc?.dataUrl,
+    application?.incomeCertificateDoc?.dataUrl,
+    isTranscriptDocImage,
+    isIncomeDocImage,
+  ]);
 
   // Print / Save as PDF via native vector print engine
   const handleDownloadPdf = () => {
     setPrintNotice('ระบบเปิดหน้าต่างพิมพ์ ให้เลือกเครื่องพิมพ์ปลายทางเป็น "บันทึกเป็น PDF" (Save as PDF)');
-    setTimeout(() => setPrintNotice(null), 4000);
+    setTimeout(() => setPrintNotice(null), 4500);
     handlePrint();
   };
 
-  // Robust isolated iframe printing (works in iframe sandboxes & prevents outer shell print)
+  // Robust isolated iframe printing with refined, compact typography
   const handlePrint = () => {
     const printContent = document.getElementById('printable-application-slip');
     if (!printContent) {
@@ -185,7 +251,7 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="preconnect" href="https://fonts.googleapis.com">
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
           ${styleTags}
           <style>
             * {
@@ -195,17 +261,17 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
             }
             body {
               margin: 0;
-              padding: 10mm 12mm;
+              padding: 0;
               font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              font-size: 11pt;
+              font-size: 8.5pt;
               color: #1C1C1E;
               background: #ffffff;
-              line-height: 1.45;
+              line-height: 1.35;
             }
             .print\\:hidden { display: none !important; }
             @page {
               size: A4 portrait;
-              margin: 8mm;
+              margin: 8mm 10mm;
             }
             .page-break-inside-avoid {
               break-inside: avoid !important;
@@ -216,10 +282,18 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
               page-break-before: always !important;
             }
             img { max-width: 100%; height: auto; }
+            img.print-page-img {
+              max-width: 100% !important;
+              height: auto !important;
+              display: block !important;
+              margin-left: auto !important;
+              margin-right: auto !important;
+              page-break-inside: avoid !important;
+            }
           </style>
         </head>
         <body>
-          <div id="printable-application-slip" class="space-y-6">
+          <div id="printable-application-slip" class="space-y-3.5 text-[8.5pt]">
             ${printContent.innerHTML}
           </div>
         </body>
@@ -239,18 +313,11 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
           if (document.body.contains(iframe)) {
             document.body.removeChild(iframe);
           }
-        }, 4000);
+        }, 5000);
       }
-    }, 400);
+    }, 450);
   };
 
-  const isIncomeDocImage =
-    application.incomeCertificateDoc?.fileType?.startsWith('image/') ||
-    application.incomeCertificateDoc?.dataUrl?.startsWith('data:image/');
-
-  const isTranscriptDocImage =
-    application.academicTranscriptDoc?.fileType?.startsWith('image/') ||
-    application.academicTranscriptDoc?.dataUrl?.startsWith('data:image/');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto animate-fadeIn print:p-0 print:bg-white print:static print:overflow-visible">
@@ -310,39 +377,39 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
         {/* Printable Official Application Document */}
         <div
           id="printable-application-slip"
-          className="p-6 sm:p-10 space-y-6 text-[#1C1C1E] text-sm font-['Sarabun',sans-serif] max-h-[85vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0"
+          className="p-4 sm:p-8 space-y-4 print:space-y-2.5 text-[#1C1C1E] text-xs sm:text-sm font-['Sarabun',sans-serif] max-h-[85vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0"
         >
           {/* Header */}
-          <div className="text-center border-b-2 border-[#1C1C1E] pb-5 page-break-inside-avoid">
-            <div className="flex justify-center mb-2">
-              <div className="w-12 h-12 rounded-[16px] bg-[#1C1C1E] text-[#FF9500] flex items-center justify-center font-bold text-xl shadow-md print:bg-white print:border print:border-black">
-                <Award className="w-7 h-7" />
+          <div className="text-center border-b-2 border-[#1C1C1E] pb-3 print:pb-2 page-break-inside-avoid">
+            <div className="flex justify-center mb-1.5 print:mb-1">
+              <div className="w-10 h-10 print:w-7 print:h-7 rounded-[12px] print:rounded-[6px] bg-[#1C1C1E] text-[#FF9500] flex items-center justify-center font-bold text-lg print:text-sm shadow-md print:bg-white print:border print:border-black">
+                <Award className="w-5 h-5 print:w-4 print:h-4" />
               </div>
             </div>
-            <h2 className="text-lg sm:text-xl font-bold text-[#1C1C1E] font-['Prompt',sans-serif]">
+            <h2 className="text-base sm:text-lg font-bold text-[#1C1C1E] font-['Prompt',sans-serif] print:text-[11.5pt] print:leading-tight">
               แบบคำขอรับทุนการศึกษาสำหรับนิสิตที่ขาดแคลนทุนทรัพย์
             </h2>
-            <h3 className="text-base font-semibold text-[#636366] print:text-black">
+            <h3 className="text-xs sm:text-sm font-semibold text-[#636366] print:text-[9.5pt] print:text-black">
               คณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร ประจำปีการศึกษา {application.academicYear || '2569'}
             </h3>
-            <div className="mt-2 inline-flex flex-wrap items-center justify-center gap-3 text-xs text-[#8E8E93] print:text-black">
-              <span className="px-2.5 py-1 bg-[#F2F2F7] rounded-full font-mono font-bold text-[#1C1C1E] border border-black/[0.05]">
+            <div className="mt-1.5 print:mt-1 inline-flex flex-wrap items-center justify-center gap-2 text-[11px] sm:text-xs text-[#8E8E93] print:text-[8pt] print:text-black">
+              <span className="px-2 py-0.5 bg-[#F2F2F7] rounded-full font-mono font-bold text-[#1C1C1E] border border-black/[0.05]">
                 เลขที่ใบสมัคร: {application.id}
               </span>
               <span>วันที่บันทึก: {formatThaiDateTime(application.createdAt)}</span>
-              <span className="px-2.5 py-0.5 rounded-full font-bold bg-[#34C759]/12 text-[#248A3D] border border-[#34C759]/30 print:bg-transparent print:border-black print:text-black">
+              <span className="px-2 py-0.5 rounded-full font-bold bg-[#34C759]/12 text-[#248A3D] border border-[#34C759]/30 print:bg-transparent print:border-black print:text-black">
                 สถานะ: บันทึกและยื่นใบสมัครแล้ว
               </span>
             </div>
           </div>
 
           {/* Module 0 : การยืนยันข้อมูล */}
-          <div className="bg-[#F8F9FA] rounded-[14px] p-3.5 border border-black/[0.06] text-xs page-break-inside-avoid">
+          <div className="bg-[#F8F9FA] rounded-[10px] p-2.5 print:p-2 border border-black/[0.06] text-xs print:text-[8pt] page-break-inside-avoid">
             <p className="font-bold text-[#1C1C1E] flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-[#34C759]" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#34C759] shrink-0" />
               <span>Module 0 : การยืนยันข้อมูลและรับรองความถูกต้อง</span>
             </p>
-            <p className="text-[#3C4043] mt-1 pl-5">
+            <p className="text-[#3C4043] mt-0.5 pl-5 leading-relaxed">
               ข้าพเจ้าขอรับรองว่าข้อมูลตามแบบคำขอสมัครทุนการศึกษาเป็นข้อมูลที่ถูกต้องตามความเป็นจริงทุกประการ
               (ผ่านการยืนยันตัวตนในระบบดิจิทัลแล้ว: {application.agreedToTerms ? 'ยืนยันถูกต้องครบถ้วน' : 'ไม่ระบุ'})
             </p>
@@ -350,14 +417,14 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
 
           {/* Module 1 : ข้อมูลส่วนตัวของนิสิต พร้อมรูปภาพที่อัปโหลด */}
           <div className="page-break-inside-avoid">
-            <h4 className="font-bold text-[#1C1C1E] text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3.5 py-1.5 rounded-[10px] mb-3">
+            <h4 className="font-bold text-[#1C1C1E] text-xs sm:text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3 py-1 rounded-[8px] mb-2 print:text-[9pt] print:py-0.5 print:mb-1.5">
               Module 1 : ข้อมูลส่วนตัวของนิสิต
             </h4>
-            <div className="flex flex-col sm:flex-row gap-5 items-start">
-              {/* 📷 รูปถ่ายนิสิตที่ Upload */}
+            <div className="flex flex-row gap-4 items-start">
+              {/* 📷 รูปถ่ายนิสิตที่ Upload - ขนาดรูปติดบัตร 1 - 1.5 นิ้ว ไม่ใหญ่เทอะทะ */}
               <div className="shrink-0 flex flex-col items-center">
                 {application.studentPhotoDoc?.dataUrl ? (
-                  <div className="w-32 h-40 rounded-[12px] overflow-hidden border-2 border-black/20 shadow-xs bg-[#F2F2F7]">
+                  <div className="w-20 h-26 sm:w-22 sm:h-28 print:w-18 print:h-24 rounded-[8px] overflow-hidden border border-black/20 shadow-xs bg-[#F2F2F7]">
                     <img
                       src={application.studentPhotoDoc.dataUrl}
                       alt={application.fullName}
@@ -365,18 +432,18 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                     />
                   </div>
                 ) : (
-                  <div className="w-32 h-40 rounded-[12px] border-2 border-dashed border-[#8E8E93]/40 flex flex-col items-center justify-center p-2 text-center bg-[#F8F9FA]">
-                    <User className="w-8 h-8 text-[#8E8E93]/40 mb-1" />
-                    <span className="text-[11px] text-[#8E8E93] leading-tight">
-                      รูปถ่ายนิสิต<br />(ชุดนิสิตหน้าตรง)
+                  <div className="w-20 h-26 sm:w-22 sm:h-28 print:w-18 print:h-24 rounded-[8px] border border-dashed border-[#8E8E93]/40 flex flex-col items-center justify-center p-1.5 text-center bg-[#F8F9FA]">
+                    <User className="w-6 h-6 text-[#8E8E93]/40 mb-1" />
+                    <span className="text-[9px] text-[#8E8E93] leading-tight">
+                      รูปถ่ายนิสิต<br />(หน้าตรง)
                     </span>
                   </div>
                 )}
-                <span className="text-[10px] text-[#8E8E93] mt-1">รูปถ่ายหน้าตรงชุดนิสิต</span>
+                <span className="text-[9px] text-[#8E8E93] mt-0.5 print:text-[7pt]">รูปถ่ายหน้าตรงชุดนิสิต</span>
               </div>
 
               {/* ข้อมูลประวัตินิสิต */}
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-xs sm:text-sm">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-4 text-xs print:text-[8.5pt] print:gap-y-0.5 print:leading-snug">
                 <p>
                   <strong>1. ชื่อ-สกุล:</strong> {application.fullName}
                 </p>
@@ -400,16 +467,16 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </p>
 
                 {/* สถานะเอกสารผลการเรียน */}
-                <div className="sm:col-span-2 pt-1">
+                <div className="sm:col-span-2 pt-0.5">
                   <strong>เอกสารผลการศึกษา:</strong>{' '}
                   {application.academicTranscriptDoc ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-[#007AFF]/10 text-[#007AFF] font-medium text-xs print:bg-transparent print:text-black">
-                      <FileText className="w-3.5 h-3.5" />
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[6px] bg-[#007AFF]/10 text-[#007AFF] font-medium text-xs print:bg-transparent print:text-black print:text-[8pt]">
+                      <FileText className="w-3 h-3" />
                       <span>{application.academicTranscriptDoc.fileName}</span>
-                      <span className="text-[11px] text-[#636366]">(แนบเอกสารฉบับเต็มด้านล่างใบสมัคร)</span>
+                      <span className="text-[10px] text-[#636366] print:text-[7.5pt]">(แนบเอกสารฉบับเต็มด้านล่าง)</span>
                     </span>
                   ) : (
-                    <span className="text-[#8E8E93] text-xs">ไม่ได้แนบไฟล์</span>
+                    <span className="text-[#8E8E93] text-xs print:text-[8pt]">ไม่ได้แนบไฟล์</span>
                   )}
                 </div>
               </div>
@@ -418,11 +485,11 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
 
           {/* Module 2 : ข้อมูลครอบครัว */}
           <div className="page-break-inside-avoid">
-            <h4 className="font-bold text-[#1C1C1E] text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3.5 py-1.5 rounded-[10px] mb-3">
+            <h4 className="font-bold text-[#1C1C1E] text-xs sm:text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3 py-1 rounded-[8px] mb-2 print:text-[9pt] print:py-0.5 print:mb-1.5">
               Module 2 : ข้อมูลครอบครัว
             </h4>
-            <div className="space-y-3 pl-2 text-xs sm:text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-[#F9F9FB] rounded-[10px]">
+            <div className="space-y-2 pl-1 text-xs print:text-[8.5pt] print:space-y-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 bg-[#F9F9FB] rounded-[8px] print:p-1.5">
                 <p>
                   <strong>8. บิดา:</strong> {application.fatherName || '-'} ({application.fatherStatus || 'ยังมีชีวิต'}, อายุ {application.fatherAge || '-'} ปี)
                 </p>
@@ -431,7 +498,7 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-[#F9F9FB] rounded-[10px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 bg-[#F9F9FB] rounded-[8px] print:p-1.5">
                 <p>
                   <strong>9. มารดา:</strong> {application.motherName || '-'} ({application.motherStatus || 'ยังมีชีวิต'}, อายุ {application.motherAge || '-'} ปี)
                 </p>
@@ -440,7 +507,7 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-[#F9F9FB] rounded-[10px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 bg-[#F9F9FB] rounded-[8px] print:p-1.5">
                 <p>
                   <strong>10. ผู้ปกครอง:</strong> {application.guardianName || '-'} (เกี่ยวข้อง: {application.guardianRelation || '-'})
                 </p>
@@ -449,7 +516,7 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-0.5">
                 <p>
                   <strong>11. สถานภาพสมรสของบิดามารดา:</strong> {application.parentsMaritalStatus || '-'}
                 </p>
@@ -467,21 +534,21 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
           </div>
 
           {/* Module 3 & 4 : ฐานะเศรษฐกิจ & ประวัติรับทุน */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 page-break-inside-avoid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 page-break-inside-avoid">
             <div>
-              <h4 className="font-bold text-[#1C1C1E] text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3.5 py-1.5 rounded-[10px] mb-2">
+              <h4 className="font-bold text-[#1C1C1E] text-xs sm:text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3 py-1 rounded-[8px] mb-1.5 print:text-[9pt] print:py-0.5">
                 Module 3 : ฐานะทางเศรษฐกิจ
               </h4>
-              <div className="space-y-1.5 text-xs sm:text-sm pl-2">
+              <div className="space-y-1 text-xs print:text-[8.5pt] pl-1">
                 <p>
                   <strong>15. รายได้ครอบครัว/ปี:</strong> {application.familyYearlyIncome || '-'} บาท
                 </p>
                 {application.incomeCertificateDoc ? (
-                  <div className="mt-1 p-2 bg-[#007AFF]/8 rounded-[10px] border border-[#007AFF]/20 flex items-center justify-between">
-                    <span className="text-[11px] text-[#007AFF] font-medium truncate max-w-[170px] print:text-black">
+                  <div className="mt-1 p-1.5 bg-[#007AFF]/8 rounded-[8px] border border-[#007AFF]/20 flex items-center justify-between">
+                    <span className="text-[10px] text-[#007AFF] font-medium truncate max-w-[170px] print:text-black">
                       📎 {application.incomeCertificateDoc.fileName}
                     </span>
-                    <span className="text-[10px] text-[#636366]">(แนบเอกสารด้านล่าง)</span>
+                    <span className="text-[9px] text-[#636366]">(แนบเอกสารด้านล่าง)</span>
                   </div>
                 ) : (
                   <p className="text-xs text-[#8E8E93]">ไม่มีเอกสารแนบ</p>
@@ -490,10 +557,10 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
             </div>
 
             <div>
-              <h4 className="font-bold text-[#1C1C1E] text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3.5 py-1.5 rounded-[10px] mb-2">
+              <h4 className="font-bold text-[#1C1C1E] text-xs sm:text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3 py-1 rounded-[8px] mb-1.5 print:text-[9pt] print:py-0.5">
                 Module 4 : ประวัติการได้รับทุน
               </h4>
-              <div className="space-y-1.5 text-xs sm:text-sm pl-2">
+              <div className="space-y-1 text-xs print:text-[8.5pt] pl-1">
                 <p>
                   <strong>17. เงินค่าใช้จ่ายได้รับ/เดือน:</strong> {application.monthlyAllowance || '-'} บาท
                 </p>
@@ -509,30 +576,30 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
           </div>
 
           {/* Module 5, 6, 7 */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 page-break-inside-avoid">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 page-break-inside-avoid">
             <div>
-              <h4 className="font-bold text-[#1C1C1E] text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3.5 py-1.5 rounded-[10px] mb-2">
+              <h4 className="font-bold text-[#1C1C1E] text-xs sm:text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3 py-1 rounded-[8px] mb-1.5 print:text-[9pt] print:py-0.5">
                 Module 5 : ที่พักอาศัย
               </h4>
-              <p className="text-xs sm:text-sm pl-2">
+              <p className="text-xs print:text-[8.5pt] pl-1">
                 <strong>20. ที่พักอาศัย:</strong> {application.accommodationType || '-'}
               </p>
             </div>
 
             <div>
-              <h4 className="font-bold text-[#1C1C1E] text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3.5 py-1.5 rounded-[10px] mb-2">
+              <h4 className="font-bold text-[#1C1C1E] text-xs sm:text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3 py-1 rounded-[8px] mb-1.5 print:text-[9pt] print:py-0.5">
                 Module 6 : การทำงานพิเศษ
               </h4>
-              <p className="text-xs sm:text-sm pl-2">
+              <p className="text-xs print:text-[8.5pt] pl-1">
                 <strong>21. ประวัติทำงานพิเศษ:</strong> {application.partTimeWorkHistory || '-'}
               </p>
             </div>
 
             <div>
-              <h4 className="font-bold text-[#1C1C1E] text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3.5 py-1.5 rounded-[10px] mb-2">
+              <h4 className="font-bold text-[#1C1C1E] text-xs sm:text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3 py-1 rounded-[8px] mb-1.5 print:text-[9pt] print:py-0.5">
                 Module 7 : การมีส่วนร่วม
               </h4>
-              <div className="text-xs sm:text-sm pl-2 space-y-1">
+              <div className="text-xs print:text-[8.5pt] pl-1 space-y-0.5">
                 <p>
                   <strong>22. กิจกรรมชมรม/สโมสร:</strong> {application.studentActivityParticipation || '-'}
                 </p>
@@ -545,12 +612,12 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
 
           {/* Module 8 : ความจำเป็นในการรับทุน */}
           <div className="page-break-inside-avoid">
-            <h4 className="font-bold text-[#1C1C1E] text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3.5 py-1.5 rounded-[10px] mb-3">
+            <h4 className="font-bold text-[#1C1C1E] text-xs sm:text-sm font-['Prompt',sans-serif] bg-[#F2F2F7] px-3 py-1 rounded-[8px] mb-2 print:text-[9pt] print:py-0.5 print:mb-1.5">
               Module 8 : ความจำเป็นในการรับทุน
             </h4>
-            <div className="space-y-3 pl-2 text-xs sm:text-sm">
-              <div className="bg-[#F8F9FA] p-3 rounded-[12px]">
-                <p className="font-bold text-[#1C1C1E] mb-1">
+            <div className="space-y-2 pl-1 text-xs print:text-[8.5pt]">
+              <div className="bg-[#F8F9FA] p-2.5 print:p-2 rounded-[10px]">
+                <p className="font-bold text-[#1C1C1E] mb-0.5">
                   24. สิ่งที่นิสิตภูมิใจในตนเอง หรือความสามารถของนิสิต:
                 </p>
                 <p className="text-[#3A3A3C] leading-relaxed">
@@ -558,8 +625,8 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </p>
               </div>
 
-              <div className="bg-[#F8F9FA] p-3 rounded-[12px]">
-                <p className="font-bold text-[#1C1C1E] mb-1">
+              <div className="bg-[#F8F9FA] p-2.5 print:p-2 rounded-[10px]">
+                <p className="font-bold text-[#1C1C1E] mb-0.5">
                   25. เหตุผลและความจำเป็นในการรับทุนการศึกษา:
                 </p>
                 <p className="text-[#3A3A3C] leading-relaxed">
@@ -567,8 +634,8 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </p>
               </div>
 
-              <div className="bg-[#F8F9FA] p-3 rounded-[12px]">
-                <p className="font-bold text-[#1C1C1E] mb-1">
+              <div className="bg-[#F8F9FA] p-2.5 print:p-2 rounded-[10px]">
+                <p className="font-bold text-[#1C1C1E] mb-0.5">
                   26. หากได้รับทุนการศึกษา จะนำเงินทุนไปใช้ประโยชน์ในด้านใด อย่างไร:
                 </p>
                 <p className="text-[#3A3A3C] leading-relaxed">
@@ -579,44 +646,42 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
           </div>
 
           {/* Signature & Endorsement Sign-offs */}
-          {/* ข้อ 1: นิสิตผ่านการยืนยันตัวตนในระบบแล้ว ไม่ต้องให้เซ็นมือ */}
-          {/* ข้อ 2: แก้ไขเป็น "ความเห็นจากภาควิชา/สถาน" และตัดกรรมการพิจารณาทุนออก */}
-          <div className="pt-6 border-t border-black/15 page-break-inside-avoid space-y-4">
-            <div className="bg-[#F8F9FA] p-3 rounded-[12px] border border-black/[0.06] text-xs flex items-center justify-between">
+          <div className="pt-4 border-t border-black/15 page-break-inside-avoid space-y-3 print:space-y-2">
+            <div className="bg-[#F8F9FA] p-2.5 print:p-2 rounded-[10px] border border-black/[0.06] text-xs print:text-[8pt] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#34C759]" />
+                <ShieldCheck className="w-4 h-4 text-[#34C759] shrink-0" />
                 <span className="text-[#1C1C1E] font-medium">
                   ผู้สมัครได้ยืนยันความถูกต้องของข้อมูลผ่านระบบรับสมัครทุนออนไลน์เรียบร้อยแล้ว:
                   <strong className="text-[#007AFF] ml-1">{application.fullName}</strong>
                 </span>
               </div>
-              <span className="font-mono text-[#8E8E93] text-[11px]">
+              <span className="font-mono text-[#8E8E93] text-[10px] print:text-[7.5pt]">
                 (ยืนยันเมื่อ {formatThaiDateTime(application.createdAt)})
               </span>
             </div>
 
-            <div className="p-4 bg-white rounded-[14px] border border-black/10 space-y-8 text-xs">
-              <div className="flex items-center justify-between border-b border-black/10 pb-2">
-                <span className="font-bold text-sm font-['Prompt',sans-serif] text-[#1C1C1E]">
+            <div className="p-3.5 print:p-3 bg-white rounded-[12px] border border-black/10 space-y-4 print:space-y-3 text-xs print:text-[8pt]">
+              <div className="flex items-center justify-between border-b border-black/10 pb-1.5">
+                <span className="font-bold text-xs sm:text-sm font-['Prompt',sans-serif] text-[#1C1C1E] print:text-[9pt]">
                   ความเห็นจากภาควิชา/สถาน
                 </span>
-                <span className="text-[11px] text-[#8E8E93]">
+                <span className="text-[10px] text-[#8E8E93] print:text-[7.5pt]">
                   (สำหรับหัวหน้าภาควิชา / ประธานหลักสูตร / อาจารย์ที่ปรึกษา)
                 </span>
               </div>
 
-              <div className="space-y-4 pt-2">
-                <div className="border-b border-dotted border-black/40 h-6" />
-                <div className="border-b border-dotted border-black/40 h-6" />
-                <div className="border-b border-dotted border-black/40 h-6" />
+              <div className="space-y-3 print:space-y-2 pt-1">
+                <div className="border-b border-dotted border-black/40 h-5" />
+                <div className="border-b border-dotted border-black/40 h-5" />
+                <div className="border-b border-dotted border-black/40 h-5" />
               </div>
 
-              <div className="text-right pt-4 space-y-6 max-w-xs ml-auto">
-                <div className="border-b border-black/40 w-56 ml-auto" />
-                <p className="text-center text-xs">
+              <div className="text-right pt-2 space-y-4 max-w-xs ml-auto">
+                <div className="border-b border-black/40 w-52 ml-auto" />
+                <p className="text-center text-xs print:text-[8pt]">
                   ลงชื่อ (.......................................................)
                   <br />
-                  <span className="text-[11px] text-[#636366]">หัวหน้าภาควิชา/สถาน หรือ ผู้แทน</span>
+                  <span className="text-[10px] text-[#636366] print:text-[7.5pt]">หัวหน้าภาควิชา/สถาน หรือ ผู้แทน</span>
                   <br />
                   วันที่ ...... / ...... / ............
                 </p>
@@ -624,38 +689,39 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
             </div>
           </div>
 
+
           {/* ================================================================ */}
           {/* ข้อ 3: เอกสารแนบ 2 อย่างที่แนบมากับใบสมัคร */}
           {/* (1) ผลการเรียน (Academic Transcript) */}
           {/* (2) หนังสือรับรองรายได้ครอบครัว (Income Certificate) */}
           {/* ================================================================ */}
-          <div className="page-break-before pt-6 space-y-8">
-            <div className="border-b-2 border-[#1C1C1E] pb-3 flex items-center justify-between">
+          <div className="page-break-before pt-4 print:pt-2 space-y-6 print:space-y-4">
+            <div className="border-b-2 border-[#1C1C1E] pb-2 flex items-center justify-between">
               <div>
-                <h3 className="text-base sm:text-lg font-bold font-['Prompt',sans-serif] text-[#1C1C1E]">
+                <h3 className="text-base sm:text-lg font-bold font-['Prompt',sans-serif] text-[#1C1C1E] print:text-[11pt]">
                   เอกสารแนบประกอบใบสมัครขอรับทุนการศึกษา
                 </h3>
-                <p className="text-xs text-[#636366]">
+                <p className="text-xs text-[#636366] print:text-[8pt]">
                   เลขที่ใบสมัคร: <strong className="font-mono">{application.id}</strong> • นิสิต: <strong>{application.fullName}</strong> ({application.studentId})
                 </p>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#F2F2F7] text-[#1C1C1E] border border-black/10">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#F2F2F7] text-[#1C1C1E] border border-black/10 print:text-[8pt] print:py-0.5">
                 เอกสารแนบ
               </span>
             </div>
 
             {/* เอกสารแนบ 1: ผลการเรียน (Transcript / ใบแจ้งเกรด) */}
-            <div className="p-5 rounded-[18px] bg-white border border-black/15 shadow-xs space-y-4 page-break-inside-avoid">
-              <div className="flex items-center justify-between border-b border-black/10 pb-3">
+            <div className="p-4 sm:p-5 rounded-[18px] print:rounded-[10px] bg-white border border-black/15 shadow-xs space-y-3.5 print:space-y-2.5 page-break-inside-avoid print:p-2.5">
+              <div className="flex items-center justify-between border-b border-black/10 pb-2.5 print:pb-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-[8px] bg-[#5856D6]/15 text-[#5856D6] flex items-center justify-center font-bold text-xs">
+                  <span className="w-6 h-6 rounded-[6px] bg-[#5856D6]/15 text-[#5856D6] flex items-center justify-center font-bold text-xs">
                     1
                   </span>
                   <div>
-                    <h4 className="font-bold text-sm text-[#1C1C1E] font-['Prompt',sans-serif]">
+                    <h4 className="font-bold text-xs sm:text-sm text-[#1C1C1E] font-['Prompt',sans-serif] print:text-[9.5pt]">
                       เอกสารแนบ 1: ใบรายงานผลการศึกษา (Transcript / ใบแจ้งเกรด)
                     </h4>
-                    <p className="text-xs text-[#8E8E93]">
+                    <p className="text-xs text-[#8E8E93] print:text-[8pt]">
                       ผลการเรียนเฉลี่ยสะสม (GPAX): <strong>{application.gpaxRange || application.gpax || '-'}</strong>
                     </p>
                   </div>
@@ -672,8 +738,19 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#5856D6]/10 hover:bg-[#5856D6]/20 text-[#5856D6] transition-colors cursor-pointer"
                     >
                       <Maximize2 className="w-3.5 h-3.5" />
-                      <span>เปิดดูเอกสาร</span>
+                      <span>เปิดดู</span>
                     </button>
+                    {!isTranscriptDocImage && (
+                      <button
+                        type="button"
+                        onClick={() => printDirectPdf(application.academicTranscriptDoc!.dataUrl)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#D26900] transition-colors cursor-pointer"
+                        title="สั่งพิมพ์เฉพาะไฟล์ PDF นี้"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>พิมพ์ PDF นี้</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => openDocumentInNewTab(application.academicTranscriptDoc!)}
@@ -696,19 +773,52 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
 
               {application.academicTranscriptDoc ? (
                 <div className="space-y-3">
-                  <div className="text-xs text-[#636366] flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-[#5856D6]" />
+                  <div className="text-xs print:text-[8pt] text-[#636366] flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5 text-[#5856D6]" />
                     <span>ชื่อไฟล์: <strong>{application.academicTranscriptDoc.fileName}</strong></span>
                     <span>• ขนาด: {Math.round(application.academicTranscriptDoc.fileSize / 1024)} KB</span>
+                    {!isTranscriptDocImage && transcriptPages.length > 0 && (
+                      <span className="text-[#34C759] font-medium">• พร้อมพิมพ์ {transcriptPages.length} หน้า</span>
+                    )}
                   </div>
 
                   {isTranscriptDocImage && application.academicTranscriptDoc.dataUrl ? (
-                    <div className="rounded-[12px] border border-black/10 overflow-hidden max-w-2xl mx-auto bg-[#F9F9FB] p-2">
+                    <div className="rounded-[10px] border border-black/10 overflow-hidden max-w-2xl mx-auto bg-[#F9F9FB] p-2 print:p-0 print:border-none">
                       <img
                         src={application.academicTranscriptDoc.dataUrl}
                         alt="ใบรายงานผลการศึกษา"
-                        className="w-full h-auto max-h-[700px] object-contain rounded-[8px]"
+                        className="w-full h-auto max-h-[700px] object-contain rounded-[6px] print-page-img"
                       />
+                    </div>
+                  ) : !isTranscriptDocImage && transcriptPages.length > 0 ? (
+                    <div className="space-y-4 print:space-y-3">
+                      <div className="print:hidden text-xs text-[#5856D6] font-medium flex items-center justify-between bg-[#5856D6]/8 p-2.5 rounded-[10px] border border-[#5856D6]/20">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-[#5856D6]" />
+                          <span>เรนเดอร์เอกสาร PDF พร้อมพิมพ์แล้ว ({transcriptPages.length} หน้า) — เมื่อกดสั่งพิมพ์จะพิมพ์เอกสารนี้ออกมาด้วย</span>
+                        </div>
+                      </div>
+
+                      {transcriptPages.map((page) => (
+                        <div key={page.pageNumber} className="space-y-1 page-break-inside-avoid print:pt-1">
+                          <div className="text-[11px] print:text-[8pt] font-semibold text-[#636366] flex items-center justify-between px-1">
+                            <span>หน้า {page.pageNumber} จาก {transcriptPages.length}</span>
+                            <span className="font-mono text-[10px] print:text-[7.5pt]">ใบรายงานผลการศึกษา (GPAX)</span>
+                          </div>
+                          <div className="rounded-[10px] border border-black/15 overflow-hidden bg-white shadow-xs p-1 print:p-0 print:border-none print:shadow-none">
+                            <img
+                              src={page.dataUrl}
+                              alt={`หน้า ${page.pageNumber}`}
+                              className="w-full h-auto object-contain rounded-[6px] print-page-img"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : isLoadingPdfPages ? (
+                    <div className="p-6 bg-[#F8F9FA] rounded-[12px] border border-dashed border-[#8E8E93]/30 text-center text-xs flex flex-col items-center justify-center space-y-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-[#5856D6]" />
+                      <span className="text-[#1C1C1E] font-medium">กำลังเตรียมหน้าเอกสาร PDF สำหรับแสดงผลและพิมพ์...</span>
                     </div>
                   ) : application.academicTranscriptDoc.dataUrl ? (
                     <InlinePdfViewer
@@ -723,24 +833,24 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                   ) : null}
                 </div>
               ) : (
-                <div className="p-6 bg-[#F8F9FA] rounded-[14px] border border-dashed border-[#8E8E93]/30 text-center text-xs text-[#8E8E93]">
+                <div className="p-4 bg-[#F8F9FA] rounded-[10px] border border-dashed border-[#8E8E93]/30 text-center text-xs text-[#8E8E93]">
                   ไม่มีเอกสารใบรายงานผลการศึกษาแนบในใบสมัครนี้
                 </div>
               )}
             </div>
 
             {/* เอกสารแนบ 2: หนังสือรับรองรายได้ครอบครัว / สลิปเงินเดือน */}
-            <div className="p-5 rounded-[18px] bg-white border border-black/15 shadow-xs space-y-4 page-break-inside-avoid">
-              <div className="flex items-center justify-between border-b border-black/10 pb-3">
+            <div className="p-4 sm:p-5 rounded-[18px] print:rounded-[10px] bg-white border border-black/15 shadow-xs space-y-3.5 print:space-y-2.5 page-break-inside-avoid print:p-2.5">
+              <div className="flex items-center justify-between border-b border-black/10 pb-2.5 print:pb-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-[8px] bg-[#007AFF]/15 text-[#007AFF] flex items-center justify-center font-bold text-xs">
+                  <span className="w-6 h-6 rounded-[6px] bg-[#007AFF]/15 text-[#007AFF] flex items-center justify-center font-bold text-xs">
                     2
                   </span>
                   <div>
-                    <h4 className="font-bold text-sm text-[#1C1C1E] font-['Prompt',sans-serif]">
+                    <h4 className="font-bold text-xs sm:text-sm text-[#1C1C1E] font-['Prompt',sans-serif] print:text-[9.5pt]">
                       เอกสารแนบ 2: หนังสือรับรองรายได้ครอบครัว / สลิปเงินเดือน (ใช้แบบฟอร์มเดียวกับ กยศ. ได้)
                     </h4>
-                    <p className="text-xs text-[#8E8E93]">
+                    <p className="text-xs text-[#8E8E93] print:text-[8pt]">
                       รายได้ครอบครัว/ปี: <strong>{application.familyYearlyIncome || '-'} บาท</strong>
                     </p>
                   </div>
@@ -757,8 +867,19 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] transition-colors cursor-pointer"
                     >
                       <Maximize2 className="w-3.5 h-3.5" />
-                      <span>เปิดดูเอกสาร</span>
+                      <span>เปิดดู</span>
                     </button>
+                    {!isIncomeDocImage && (
+                      <button
+                        type="button"
+                        onClick={() => printDirectPdf(application.incomeCertificateDoc!.dataUrl)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-[#FF9500]/10 hover:bg-[#FF9500]/20 text-[#D26900] transition-colors cursor-pointer"
+                        title="สั่งพิมพ์เฉพาะไฟล์ PDF นี้"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>พิมพ์ PDF นี้</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => openDocumentInNewTab(application.incomeCertificateDoc!)}
@@ -781,19 +902,52 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
 
               {application.incomeCertificateDoc ? (
                 <div className="space-y-3">
-                  <div className="text-xs text-[#636366] flex items-center gap-2">
-                    <FileCheck2 className="w-4 h-4 text-[#007AFF]" />
+                  <div className="text-xs print:text-[8pt] text-[#636366] flex items-center gap-2">
+                    <FileCheck2 className="w-3.5 h-3.5 text-[#007AFF]" />
                     <span>ชื่อไฟล์: <strong>{application.incomeCertificateDoc.fileName}</strong></span>
                     <span>• ขนาด: {Math.round(application.incomeCertificateDoc.fileSize / 1024)} KB</span>
+                    {!isIncomeDocImage && incomePages.length > 0 && (
+                      <span className="text-[#34C759] font-medium">• พร้อมพิมพ์ {incomePages.length} หน้า</span>
+                    )}
                   </div>
 
                   {isIncomeDocImage && application.incomeCertificateDoc.dataUrl ? (
-                    <div className="rounded-[12px] border border-black/10 overflow-hidden max-w-2xl mx-auto bg-[#F9F9FB] p-2">
+                    <div className="rounded-[10px] border border-black/10 overflow-hidden max-w-2xl mx-auto bg-[#F9F9FB] p-2 print:p-0 print:border-none">
                       <img
                         src={application.incomeCertificateDoc.dataUrl}
                         alt="หนังสือรับรองรายได้"
-                        className="w-full h-auto max-h-[700px] object-contain rounded-[8px]"
+                        className="w-full h-auto max-h-[700px] object-contain rounded-[6px] print-page-img"
                       />
+                    </div>
+                  ) : !isIncomeDocImage && incomePages.length > 0 ? (
+                    <div className="space-y-4 print:space-y-3">
+                      <div className="print:hidden text-xs text-[#007AFF] font-medium flex items-center justify-between bg-[#007AFF]/8 p-2.5 rounded-[10px] border border-[#007AFF]/20">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-[#007AFF]" />
+                          <span>เรนเดอร์เอกสาร PDF พร้อมพิมพ์แล้ว ({incomePages.length} หน้า) — เมื่อกดสั่งพิมพ์จะพิมพ์เอกสารนี้ออกมาด้วย</span>
+                        </div>
+                      </div>
+
+                      {incomePages.map((page) => (
+                        <div key={page.pageNumber} className="space-y-1 page-break-inside-avoid print:pt-1">
+                          <div className="text-[11px] print:text-[8pt] font-semibold text-[#636366] flex items-center justify-between px-1">
+                            <span>หน้า {page.pageNumber} จาก {incomePages.length}</span>
+                            <span className="font-mono text-[10px] print:text-[7.5pt]">หนังสือรับรองรายได้ครอบครัว</span>
+                          </div>
+                          <div className="rounded-[10px] border border-black/15 overflow-hidden bg-white shadow-xs p-1 print:p-0 print:border-none print:shadow-none">
+                            <img
+                              src={page.dataUrl}
+                              alt={`หน้า ${page.pageNumber}`}
+                              className="w-full h-auto object-contain rounded-[6px] print-page-img"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : isLoadingPdfPages ? (
+                    <div className="p-6 bg-[#F8F9FA] rounded-[12px] border border-dashed border-[#8E8E93]/30 text-center text-xs flex flex-col items-center justify-center space-y-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-[#007AFF]" />
+                      <span className="text-[#1C1C1E] font-medium">กำลังเตรียมหน้าเอกสาร PDF สำหรับแสดงผลและพิมพ์...</span>
                     </div>
                   ) : application.incomeCertificateDoc.dataUrl ? (
                     <InlinePdfViewer
@@ -808,7 +962,7 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                   ) : null}
                 </div>
               ) : (
-                <div className="p-6 bg-[#F8F9FA] rounded-[14px] border border-dashed border-[#8E8E93]/30 text-center text-xs text-[#8E8E93]">
+                <div className="p-4 bg-[#F8F9FA] rounded-[10px] border border-dashed border-[#8E8E93]/30 text-center text-xs text-[#8E8E93]">
                   ไม่มีหนังสือรับรองรายได้แนบในใบสมัครนี้
                 </div>
               )}
