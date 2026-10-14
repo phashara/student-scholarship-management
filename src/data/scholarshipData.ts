@@ -1,4 +1,14 @@
 import { AnnouncementItem, ScholarshipApplication, ScoreBreakdown, TimelineConfig } from '../types';
+import {
+  STORAGE_KEY,
+  DRAFT_STORAGE_KEY,
+  safeSetApplicationsLocalStorage,
+  safeSetDraftLocalStorage,
+  saveAppIndexedDB,
+  clearAppsIndexedDB,
+} from '../utils/offlineStorage';
+
+export { STORAGE_KEY, DRAFT_STORAGE_KEY };
 
 export const ACADEMIC_YEAR = '2569';
 
@@ -566,7 +576,7 @@ export const TIMELINE_2569: AnnouncementItem[] = [
   },
   {
     id: 'step-5',
-    dateStr: 'เดือนตุลาคม 2569 (เวลา 08.30 - 11.30 น.)',
+    dateStr: '6 พฤศจิกายน 2569 (เวลา 08.30 - 11.30 น.)',
     title: 'พิธีมอบทุนการศึกษา ในวันสถาปนาคณะสังคมศาสตร์',
     subtitle: 'ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ นิสิตรับมอบทุนและส่งเอกสารเบิกจ่ายเงินเข้าบัญชี',
     location: 'โถงชั้น 1 อาคารคณะสังคมศาสตร์',
@@ -602,7 +612,11 @@ export const DEFAULT_TIMELINE_CONFIG: TimelineConfig = {
     'หนังสือรับรองรายได้ครอบครัว / สลิปเงินเดือน',
     'บัญชีธนาคารกรุงไทยสำหรับรับเงินทุน',
   ],
-  lastUpdatedAt: '2026-08-01 09:00',
+  systemPhase: 'closed_screening',
+  closedNoticeTitle: 'ปิดรับสมัครทุนการศึกษา ประจำปีการศึกษา 2569 แล้ว',
+  closedNoticeMessage:
+    'ขณะนี้สิ้นสุดระยะเวลาการยื่นแบบคำขอรับทุนการศึกษาตามประกาศคณะสังคมศาสตร์แล้ว คณะกรรมการกำลังอยู่ระหว่างการตรวจสอบเอกสารและประเมินคุณสมบัติของผู้สมัครทั้งหมด',
+  lastUpdatedAt: '2026-09-16 09:00',
   lastUpdatedBy: 'งานกิจการนิสิตและศิษย์เก่าสัมพันธ์ คณะสังคมศาสตร์',
 };
 
@@ -620,9 +634,16 @@ export function loadTimelineConfig(): TimelineConfig {
       localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(DEFAULT_TIMELINE_CONFIG));
       return DEFAULT_TIMELINE_CONFIG;
     }
+    const steps = (parsed.steps as AnnouncementItem[]).map((st) => {
+      if (st.id === 'step-5' && (st.dateStr.includes('ตุลาคม') || st.dateStr.includes('28 พฤศจิกายน'))) {
+        return { ...st, dateStr: '6 พฤศจิกายน 2569 (เวลา 08.30 - 11.30 น.)' };
+      }
+      return st;
+    });
     return {
       ...DEFAULT_TIMELINE_CONFIG,
       ...parsed,
+      steps,
       criticalNotice: {
         ...DEFAULT_TIMELINE_CONFIG.criticalNotice,
         ...(parsed.criticalNotice || {}),
@@ -659,19 +680,16 @@ export function resetTimelineConfig(): TimelineConfig {
 
 export const INITIAL_APPLICATIONS_2569: ScholarshipApplication[] = [];
 
-export const STORAGE_KEY = 'nu_socsci_scholarship_applications_2569';
-export const DRAFT_STORAGE_KEY = 'nu_socsci_scholarship_draft_2569';
-
 export function loadApplications(): ScholarshipApplication[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      safeSetApplicationsLocalStorage([]);
       return [];
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      safeSetApplicationsLocalStorage([]);
       return [];
     }
     // Update any legacy APP-2569 prefix to FSS-2569
@@ -683,16 +701,17 @@ export function loadApplications(): ScholarshipApplication[] {
     });
     return updated;
   } catch (e) {
-    console.error('Failed to load applications from localStorage', e);
+    console.warn('Could not load applications from localStorage:', e);
     return [];
   }
 }
 
 export function clearAllApplications(): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+    safeSetApplicationsLocalStorage([]);
+    clearAppsIndexedDB().catch(() => {});
   } catch (e) {
-    console.error('Failed to clear applications', e);
+    console.warn('Failed to clear applications:', e);
   }
 }
 
@@ -707,18 +726,18 @@ export function saveApplication(app: ScholarshipApplication): void {
     } else {
       apps.unshift({ ...app, updatedAt: new Date().toISOString() });
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
+    safeSetApplicationsLocalStorage(apps);
+    saveAppIndexedDB(app).catch(() => {});
   } catch (e) {
-    console.error('Failed to save application', e);
+    console.warn('Could not save application to local storage cache:', e);
   }
 }
 
 export function saveDraft(data: Partial<ScholarshipApplication>): boolean {
   try {
-    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(data));
-    return true;
+    return safeSetDraftLocalStorage(data);
   } catch (e) {
-    console.error('Failed to save draft', e);
+    console.warn('Could not save draft to local storage cache:', e);
     return false;
   }
 }

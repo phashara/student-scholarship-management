@@ -53,6 +53,7 @@ import { AdminEditApplicantModal } from './AdminEditApplicantModal';
 import { DeleteApplicantModal } from './DeleteApplicantModal';
 import { ItemizedScoreModal } from './ItemizedScoreModal';
 import { TimelineEditorModal } from './TimelineEditorModal';
+import { LifecyclePhaseControl } from './LifecyclePhaseControl';
 
 interface ReviewerDashboardProps {
   applications: ScholarshipApplication[];
@@ -136,7 +137,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
     currentTimelineConfig?.steps?.find((s) => s.id === 'step-3')?.dateStr?.split('(')[0]?.trim() ||
     '23 กันยายน 2569';
 
-  const handleSaveScoreNotes = (appId: string, notes: string) => {
+  const handleSaveScoreNotes = async (appId: string, notes: string) => {
     const target = applications.find((a) => a.id === appId);
     if (!target) return;
     const updated: ScholarshipApplication = {
@@ -144,13 +145,30 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
       reviewerNotes: notes.trim() || undefined,
       updatedAt: new Date().toLocaleString('th-TH'),
     };
-    saveApplicationOnline(updated);
+    try {
+      await saveApplicationOnline(updated);
+    } catch (err) {
+      console.warn('Could not save score notes online:', err);
+    }
     onRefresh();
   };
 
   const handleSaveEditedApplicant = async (updatedApp: ScholarshipApplication) => {
-    await saveApplicationOnline(updatedApp);
+    try {
+      await saveApplicationOnline(updatedApp);
+    } catch (err) {
+      console.warn('Could not save applicant online:', err);
+    }
     onRefresh();
+  };
+
+  const handleUpdateTimelineConfigInternal = (newCfg: TimelineConfig) => {
+    if (onUpdateTimelineConfig) {
+      onUpdateTimelineConfig(newCfg);
+    } else {
+      saveTimelineConfigOnline(newCfg);
+    }
+    setTimelineConfig(newCfg);
   };
 
   const handleConfirmDeleteSingle = async () => {
@@ -227,7 +245,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
     setReviewerNotes(app.reviewerNotes || '');
   };
 
-  const handleSaveStatus = () => {
+  const handleSaveStatus = async () => {
     if (!editingApp) return;
     const updated: ScholarshipApplication = {
       ...editingApp,
@@ -236,7 +254,11 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
       reviewerNotes: reviewerNotes.trim() || undefined,
       updatedAt: new Date().toLocaleString('th-TH'),
     };
-    saveApplicationOnline(updated);
+    try {
+      await saveApplicationOnline(updated);
+    } catch (err) {
+      console.warn('Could not save status online:', err);
+    }
     setEditingApp(null);
     onRefresh();
   };
@@ -459,6 +481,12 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Academic Year Lifecycle Control Banner (Annual System Phase Control) */}
+        <LifecyclePhaseControl
+          timelineConfig={currentTimelineConfig}
+          onUpdateConfig={handleUpdateTimelineConfigInternal}
+        />
 
         {/* Metric Widgets (iOS Style) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
@@ -1284,7 +1312,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                   className="w-full px-3.5 py-2.5 rounded-[14px] bg-[#F2F2F7] text-sm outline-none border border-transparent focus:bg-white focus:ring-2 focus:ring-[#007AFF]/25 cursor-pointer"
                 >
                   <option value="submitted">ยื่นใบสมัครแล้ว (รอตรวจสอบ)</option>
-                  <option value="eligible_for_interview">มีสิทธิ์เข้าสัมภาษณ์ทุน ({interviewDateDisplay})</option>
+                  <option value="eligible_for_interview">มีสิทธิ์สอบสัมภาษณ์</option>
                   <option value="interviewed">สัมภาษณ์แล้ว (รอผลพิจารณาจำนวนทุน)</option>
                   <option value="awarded">อนุมัติจัดสรรทุนการศึกษา</option>
                   <option value="not_selected">ไม่อยู่ในกลุ่มผู้ได้รับการคัดเลือกเข้าสัมภาษณ์</option>

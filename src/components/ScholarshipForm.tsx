@@ -381,6 +381,10 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (timelineConfig?.systemPhase && timelineConfig.systemPhase !== 'open') {
+      setSubmissionError('ระบบปิดรับสมัครทุนการศึกษาตามกำหนดการแล้ว ไม่สามารถส่งข้อมูลได้');
+      return;
+    }
     if (submittingRef.current) return;
     setSubmissionError('');
     if (processingFilesRef.current > 0) {

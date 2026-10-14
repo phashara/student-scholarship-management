@@ -246,7 +246,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
                     จำนวนทุนการศึกษาที่ได้รับ: <strong>{matchedApp.awardedAmount ? `${matchedApp.awardedAmount.toLocaleString()} บาท` : 'ตามประกาศคณะกรรมการ'}</strong>
                   </p>
                   <p className="text-xs text-[#166534]">
-                    พิธีมอบทุนจะจัดขึ้นในเดือนตุลาคม 2569 ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร
+                    พิธีมอบทุนจะจัดขึ้นในวันที่ {timelineConfig?.steps?.find((s) => s.id === 'step-5' || s.title?.includes('พิธีมอบทุน'))?.dateStr || '6 พฤศจิกายน 2569'} ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร
                   </p>
                 </div>
               )}

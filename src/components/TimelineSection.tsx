@@ -11,6 +11,7 @@ import {
   FilePenLine,
   GraduationCap,
   HelpCircle,
+  Lock,
   MapPin,
   Megaphone,
   Phone,
@@ -156,6 +157,11 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
             <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#767680]/10 text-[#636366]">
               มหาวิทยาลัยนเรศวร (ปี {config.academicYear})
             </span>
+            {config.systemPhase !== 'open' && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 border border-amber-500/30 text-amber-800 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5" /> ปิดรับสมัครแล้ว
+              </span>
+            )}
           </div>
 
           {isAdminLoggedIn && (
@@ -181,10 +187,23 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           <button
             id="hero-apply-btn"
             onClick={onStartApplication}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#007AFF] hover:bg-[#0071EB] text-white font-semibold text-sm shadow-md shadow-[#007AFF]/25 transition-all active:scale-[0.98] cursor-pointer"
+            className={`inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm shadow-md transition-all active:scale-[0.98] cursor-pointer ${
+              config.systemPhase === 'open'
+                ? 'bg-[#007AFF] hover:bg-[#0071EB] text-white shadow-[#007AFF]/25'
+                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/25'
+            }`}
           >
-            <FilePenLine className="w-4 h-4" />
-            <span>กรอกใบสมัครขอรับทุน (ปี {config.academicYear})</span>
+            {config.systemPhase === 'open' ? (
+              <>
+                <FilePenLine className="w-4 h-4" />
+                <span>กรอกใบสมัครขอรับทุน (ปี {config.academicYear})</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4" />
+                <span>ปิดรับสมัครแล้ว (ตรวจสอบสถานะ/ประกาศผล)</span>
+              </>
+            )}
           </button>
           {config.contactPhone && (
             <a

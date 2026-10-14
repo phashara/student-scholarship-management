@@ -114,6 +114,10 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
     timelineConfig?.steps?.find((s) => s.id === 'step-3')?.location ||
     'ห้องประชุมราชพฤกษ์ 3 คณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร';
 
+  const awardDateStr =
+    timelineConfig?.steps?.find((s) => s.id === 'step-5' || s.title?.includes('พิธีมอบทุน'))?.dateStr ||
+    '6 พฤศจิกายน 2569 (เวลา 08.30 - 11.30 น.)';
+
   // Export announcement document as PDF via print preview
   const handleExportPdf = () => {
     setToastMessage('ระบบเปิดหน้าต่างพิมพ์ ให้เลือกเครื่องพิมพ์ปลายทางเป็น "บันทึกเป็น PDF" (Save as PDF)');
@@ -367,7 +371,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                 </h3>
               </div>
               <p className="text-xs text-[#1C1C1E] font-medium">
-                พิธีมอบทุนการศึกษา: ในงานวันสถาปนาคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร (วันที่ 28 พฤศจิกายน)
+                พิธีมอบทุนการศึกษา: ในงานวันสถาปนาคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร ({awardDateStr})
               </p>
               <p className="text-[11px] text-[#248A3D]">
                 งานกิจการนิสิตและศิษย์เก่าสัมพันธ์จะประสานงานเรื่องการเปิดบัญชีและเอกสารลงนามสัญญารับทุนต่อไป
@@ -483,7 +487,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
             <>
               <div>
                 <span className="text-[#8E8E93]">กำหนดการมอบทุน: </span>
-                <strong className="text-[#1C1C1E]">วันสถาปนาคณะสังคมศาสตร์ (28 พฤศจิกายน)</strong>
+                <strong className="text-[#1C1C1E]">วันสถาปนาคณะสังคมศาสตร์ ({awardDateStr})</strong>
               </div>
               <div>
                 <span className="text-[#8E8E93]">จำนวนผู้ได้รับทุนทั้งหมด: </span>

@@ -105,21 +105,33 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#34C759] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#34C759]"></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  timelineConfig?.systemPhase === 'open' ? 'bg-[#34C759]' :
+                  timelineConfig?.systemPhase === 'interview_announced' ? 'bg-[#AF52DE]' :
+                  timelineConfig?.systemPhase === 'awarded' ? 'bg-[#007AFF]' : 'bg-[#FF9500]'
+                }`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                  timelineConfig?.systemPhase === 'open' ? 'bg-[#34C759]' :
+                  timelineConfig?.systemPhase === 'interview_announced' ? 'bg-[#AF52DE]' :
+                  timelineConfig?.systemPhase === 'awarded' ? 'bg-[#007AFF]' : 'bg-[#FF9500]'
+                }`}></span>
               </span>
               <span className="font-semibold tracking-wide text-white/95">
                 ทุนการศึกษา {timelineConfig?.academicYear || '2569'}
               </span>
               <span className="text-white/40">•</span>
               <span className="text-white/75 text-[11px] truncate max-w-[140px] sm:max-w-none">
-                คณะสังคมศาสตร์ ม.นเรศวร
+                {timelineConfig?.systemPhase === 'open' ? 'เปิดรับสมัคร' :
+                 timelineConfig?.systemPhase === 'interview_announced' ? 'ประกาศสัมภาษณ์แล้ว' :
+                 timelineConfig?.systemPhase === 'awarded' ? 'ประกาศผลจัดสรรแล้ว' : 'ปิดรับสมัคร (อยู่ระหว่างคัดกรอง)'}
               </span>
             </div>
 
             <div className="flex items-center gap-2 text-white/70">
               <span className="hidden sm:inline text-[11px] bg-white/15 px-2 py-0.5 rounded-full text-white font-mono">
-                {closingDateText}
+                {timelineConfig?.systemPhase === 'open' ? closingDateText :
+                 timelineConfig?.systemPhase === 'interview_announced' ? 'รอบสัมภาษณ์' :
+                 timelineConfig?.systemPhase === 'awarded' ? 'สิ้นสุดรอบปี' : 'ปิดรับสมัครแล้ว'}
               </span>
               <a
                 href={`tel:${phoneText.replace(/[^0-9]/g, '')}`}
@@ -180,8 +192,20 @@ export const Header: React.FC<HeaderProps> = ({
                     : 'text-[#636366] hover:text-[#1C1C1E] hover:bg-white/40'
                 }`}
               >
-                <FileText className={`w-4 h-4 ${activeTab === 'form' ? 'text-[#007AFF]' : 'text-[#8E8E93]'}`} />
-                <span>กรอกใบสมัคร</span>
+                {timelineConfig?.systemPhase === 'open' ? (
+                  <>
+                    <FileText className={`w-4 h-4 ${activeTab === 'form' ? 'text-[#007AFF]' : 'text-[#8E8E93]'}`} />
+                    <span>กรอกใบสมัคร</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className={`w-3.5 h-3.5 ${activeTab === 'form' ? 'text-amber-600' : 'text-[#8E8E93]'}`} />
+                    <span>ใบสมัคร</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-800 font-bold">
+                      ปิดแล้ว
+                    </span>
+                  </>
+                )}
               </button>
 
               <button
@@ -307,14 +331,31 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => handleNavClick('form')}
               className={`w-full flex items-center justify-between p-3 rounded-[16px] text-sm font-semibold transition-all ${
-                activeTab === 'form' ? 'bg-[#007AFF]/10 text-[#007AFF]' : 'text-[#1C1C1E] hover:bg-[#F2F2F7]'
+                activeTab === 'form'
+                  ? timelineConfig?.systemPhase === 'open' ? 'bg-[#007AFF]/10 text-[#007AFF]' : 'bg-amber-500/10 text-amber-900'
+                  : 'text-[#1C1C1E] hover:bg-[#F2F2F7]'
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-[10px] flex items-center justify-center ${activeTab === 'form' ? 'bg-[#007AFF] text-white' : 'bg-[#F2F2F7] text-[#007AFF]'}`}>
-                  <FileText className="w-4 h-4" />
+                <div className={`w-8 h-8 rounded-[10px] flex items-center justify-center ${
+                  activeTab === 'form'
+                    ? timelineConfig?.systemPhase === 'open' ? 'bg-[#007AFF] text-white' : 'bg-amber-600 text-white'
+                    : timelineConfig?.systemPhase === 'open' ? 'bg-[#F2F2F7] text-[#007AFF]' : 'bg-amber-50 text-amber-700'
+                }`}>
+                  {timelineConfig?.systemPhase === 'open' ? (
+                    <FileText className="w-4 h-4" />
+                  ) : (
+                    <Lock className="w-4 h-4" />
+                  )}
                 </div>
-                <span>กรอกใบสมัครทุน</span>
+                <div className="flex items-center gap-2">
+                  <span>{timelineConfig?.systemPhase === 'open' ? 'กรอกใบสมัครทุน' : 'ใบสมัครทุนการศึกษา'}</span>
+                  {timelineConfig?.systemPhase !== 'open' && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-800">
+                      ปิดแล้ว
+                    </span>
+                  )}
+                </div>
               </div>
               <ChevronRight className="w-4 h-4 text-[#8E8E93]" />
             </button>

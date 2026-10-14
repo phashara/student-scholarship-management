@@ -28,6 +28,7 @@ import { ScholarshipForm } from './components/ScholarshipForm';
 import { ScoringCriteriaModal } from './components/ScoringCriteriaModal';
 import { StatusTracker } from './components/StatusTracker';
 import { TimelineSection } from './components/TimelineSection';
+import { ApplicationClosedNotice } from './components/ApplicationClosedNotice';
 import { clearAllApplications, loadApplications, loadTimelineConfig } from './data/scholarshipData';
 import {
   clearAllApplicationsOnline,
@@ -41,7 +42,10 @@ import {
 import { ScholarshipApplication, TimelineConfig } from './types';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'form' | 'timeline' | 'announcements' | 'status' | 'applicants' | 'admin'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'timeline' | 'announcements' | 'status' | 'applicants' | 'admin'>(() => {
+    const initialConfig = loadTimelineConfig();
+    return initialConfig.systemPhase === 'open' ? 'form' : 'announcements';
+  });
   const [applications, setApplications] = useState<ScholarshipApplication[]>([]);
   const [timelineConfig, setTimelineConfig] = useState<TimelineConfig>(loadTimelineConfig);
   const [selectedApplication, setSelectedApplication] = useState<ScholarshipApplication | null>(null);
@@ -175,10 +179,19 @@ export default function App() {
           </div>
         ) : <>
         {activeTab === 'form' && (
-          <ScholarshipForm
-            onSubmitSuccess={handleApplicationSubmitted}
-            timelineConfig={timelineConfig}
-          />
+          timelineConfig.systemPhase === 'open' ? (
+            <ScholarshipForm
+              onSubmitSuccess={handleApplicationSubmitted}
+              timelineConfig={timelineConfig}
+            />
+          ) : (
+            <ApplicationClosedNotice
+              timelineConfig={timelineConfig}
+              onGoToStatus={() => setActiveTab('status')}
+              onGoToAnnouncements={() => setActiveTab('announcements')}
+              onGoToTimeline={() => setActiveTab('timeline')}
+            />
+          )
         )}
 
         {activeTab === 'timeline' && (
@@ -261,11 +274,22 @@ export default function App() {
           <button
             onClick={() => setActiveTab('form')}
             className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-full transition-all active:scale-95 cursor-pointer ${
-              activeTab === 'form' ? 'text-[#007AFF] font-bold' : 'text-[#8E8E93]'
+              activeTab === 'form'
+                ? timelineConfig.systemPhase === 'open' ? 'text-[#007AFF] font-bold' : 'text-amber-700 font-bold'
+                : 'text-[#8E8E93]'
             }`}
           >
-            <FileText className="w-5 h-5" />
-            <span className="text-[10px]">กรอกใบสมัคร</span>
+            {timelineConfig.systemPhase === 'open' ? (
+              <>
+                <FileText className="w-5 h-5" />
+                <span className="text-[10px]">กรอกใบสมัคร</span>
+              </>
+            ) : (
+              <>
+                <Lock className={`w-5 h-5 ${activeTab === 'form' ? 'text-amber-700' : 'text-[#8E8E93]'}`} />
+                <span className="text-[10px]">ใบสมัคร</span>
+              </>
+            )}
           </button>
 
           <button

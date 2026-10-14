@@ -24,6 +24,11 @@ import {
   loadTimelineConfig as loadLocalTimelineConfig,
   saveTimelineConfig as saveLocalTimelineConfig,
 } from '../data/scholarshipData';
+import {
+  safeSetApplicationsLocalStorage,
+  saveAppsIndexedDB,
+  deleteAppIndexedDB,
+} from '../utils/offlineStorage';
 
 const APPLICATIONS_COLLECTION = 'scholarship_applications';
 const TIMELINE_COLLECTION = 'timeline_configs';
@@ -128,10 +133,9 @@ export function subscribeApplications(
 
       // Update local storage cache to match Firestore truth
       try {
-        localStorage.setItem(
-          'nu_socsci_scholarship_applications_2569',
-          JSON.stringify(remoteApps.filter((a) => !DEMO_APP_IDS.has(a.id)))
-        );
+        const filtered = remoteApps.filter((a) => !DEMO_APP_IDS.has(a.id));
+        safeSetApplicationsLocalStorage(filtered);
+        saveAppsIndexedDB(filtered).catch(() => {});
       } catch {
         // ignore
       }
@@ -176,7 +180,7 @@ export async function clearAllApplicationsOnline(): Promise<void> {
     if (stillPresent) throw new Error('เซิร์ฟเวอร์ยังพบข้อมูลเดิมหลังการลบ กรุณาลองใหม่อีกครั้ง');
 
     const remaining = loadLocalApplications().filter(app => !removedIds.has(app.id.replace(/^APP-/, 'FSS-')));
-    localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(remaining));
+    safeSetApplicationsLocalStorage(remaining);
     localStorage.removeItem('nu_socsci_scholarship_draft_2569');
   } catch (error) {
     removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
@@ -240,7 +244,11 @@ export async function submitApplicationOnline(app: ScholarshipApplication): Prom
 // transaction above and must never enter this merge-based update path.
 export async function saveApplicationOnline(app: ScholarshipApplication): Promise<void> {
   // Always update local cache immediately for responsive UX
-  saveLocalApplication(app);
+  try {
+    saveLocalApplication(app);
+  } catch (err) {
+    console.warn('Local cache update skipped:', err);
+  }
 
   try {
     const docRef = doc(db, APPLICATIONS_COLLECTION, app.id);
@@ -291,7 +299,8 @@ export async function deleteApplicationOnline(appId: string, studentId?: string)
     const remaining = loadLocalApplications().filter(app =>
       !(normalizeApplicationId(app.id) === normalizedAppId && (!studentId || app.studentId === studentId))
     );
-    localStorage.setItem('nu_socsci_scholarship_applications_2569', JSON.stringify(remaining));
+    safeSetApplicationsLocalStorage(remaining);
+    deleteAppIndexedDB(normalizedAppId).catch(() => {});
   } catch (error) {
     removedIds.forEach((id) => pendingDeletedApplicationIds.delete(id));
     throw error;

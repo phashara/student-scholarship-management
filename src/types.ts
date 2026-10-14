@@ -157,6 +157,12 @@ export interface TimelineCriticalNotice {
   interviewLocation: string;
 }
 
+export type ScholarshipSystemPhase =
+  | 'open' // เปิดรับสมัคร
+  | 'closed_screening' // ปิดรับสมัครแล้ว (อยู่ระหว่างการตรวจสอบและคัดกรองคุณสมบัติ)
+  | 'interview_announced' // ประกาศรายชื่อผู้มีสิทธิ์สัมภาษณ์แล้ว
+  | 'awarded'; // ประกาศผลการคัดเลือกเสร็จสิ้น (สิ้นสุดรอบปีการศึกษา)
+
 export interface TimelineConfig {
   academicYear: string;
   heroTitle: string;
@@ -168,4 +174,7 @@ export interface TimelineConfig {
   requiredDocuments: string[];
   lastUpdatedAt?: string;
   lastUpdatedBy?: string;
+  systemPhase?: ScholarshipSystemPhase;
+  closedNoticeTitle?: string;
+  closedNoticeMessage?: string;
 }
