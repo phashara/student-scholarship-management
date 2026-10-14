@@ -616,7 +616,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
             <option value="eligible_for_interview">มีสิทธิ์สัมภาษณ์ทุน</option>
             <option value="interviewed">สัมภาษณ์แล้ว</option>
             <option value="awarded">อนุมัติทุนแล้ว</option>
-            <option value="not_selected">ไม่ผ่านการคัดเลือก</option>
+            <option value="not_selected">ไม่อยู่ในกลุ่มผู้ได้รับการคัดเลือกเข้าสัมภาษณ์</option>
           </select>
         </div>
 
@@ -819,8 +819,8 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                           </span>
                         )}
                         {app.status === 'not_selected' && (
-                          <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#FF3B30]/10 text-[#FF3B30]">
-                            ไม่ผ่าน
+                          <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#8E8E93]/15 text-[#636366]">
+                            ไม่อยู่ในกลุ่มผู้ได้รับการคัดเลือกเข้าสัมภาษณ์
                           </span>
                         )}
                       </td>
@@ -1287,7 +1287,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                   <option value="eligible_for_interview">มีสิทธิ์เข้าสัมภาษณ์ทุน ({interviewDateDisplay})</option>
                   <option value="interviewed">สัมภาษณ์แล้ว (รอผลพิจารณาจำนวนทุน)</option>
                   <option value="awarded">อนุมัติจัดสรรทุนการศึกษา</option>
-                  <option value="not_selected">ไม่ผ่านการพิจารณา</option>
+                  <option value="not_selected">ไม่อยู่ในกลุ่มผู้ได้รับการคัดเลือกเข้าสัมภาษณ์</option>
                 </select>
               </div>
 

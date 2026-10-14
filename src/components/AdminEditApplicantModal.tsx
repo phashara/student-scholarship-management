@@ -44,7 +44,7 @@ const STATUS_OPTIONS: { value: ScholarshipApplication['status']; label: string; 
   { value: 'eligible_for_interview', label: 'มีสิทธิ์เข้ารับการสัมภาษณ์', color: 'bg-[#007AFF]/10 text-[#007AFF] border-[#007AFF]/30' },
   { value: 'interviewed', label: 'ผ่านการสัมภาษณ์แล้ว', color: 'bg-[#5856D6]/10 text-[#5856D6] border-[#5856D6]/30' },
   { value: 'awarded', label: 'ได้รับทุนการศึกษา', color: 'bg-[#34C759]/10 text-[#248A3D] border-[#34C759]/30' },
-  { value: 'not_selected', label: 'ไม่ผ่านการคัดเลือก', color: 'bg-[#8E8E93]/10 text-[#636366] border-[#8E8E93]/30' },
+  { value: 'not_selected', label: 'ไม่อยู่ในกลุ่มผู้ได้รับการคัดเลือกเข้าสัมภาษณ์', color: 'bg-[#8E8E93]/10 text-[#636366] border-[#8E8E93]/30' },
 ];
 
 export const AdminEditApplicantModal: React.FC<AdminEditApplicantModalProps> = ({

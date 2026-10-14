@@ -83,7 +83,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
       case 'not_selected':
         return (
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-[#767680]/12 text-[#636366]">
-            <span>ไม่ผ่านการพิจารณาในรอบนี้</span>
+            <span>ไม่อยู่ในกลุ่มผู้ได้รับการคัดเลือกเข้าสัมภาษณ์</span>
           </div>
         );
       default:
@@ -275,7 +275,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
                       : matchedApp.status === 'interviewed'
                       ? 'สัมภาษณ์แล้ว'
                       : matchedApp.status === 'not_selected'
-                      ? 'ไม่ผ่านการพิจารณา'
+                      ? 'ไม่อยู่ในกลุ่มผู้ได้รับการคัดเลือกเข้าสัมภาษณ์'
                       : 'ยื่นใบสมัครเรียบร้อย'}
                   </span>
                 </div>

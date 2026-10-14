@@ -129,7 +129,7 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
       case 'not_selected':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#8E8E93]/15 text-[#636366] border border-[#8E8E93]/30">
-            ไม่ผ่านการคัดเลือก
+            ไม่อยู่ในกลุ่มผู้ได้รับการคัดเลือกเข้าสัมภาษณ์
           </span>
         );
       default:
