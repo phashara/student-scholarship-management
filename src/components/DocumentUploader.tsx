@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import {
   Camera,
   CheckCircle2,
+  Eye,
   FileCheck,
   FileText,
   Image as ImageIcon,
@@ -10,8 +11,8 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { AttachedDoc } from '../types';
-
 import { prepareAttachment } from '../utils/attachmentProcessing';
+import { DocumentViewerModal } from './DocumentViewerModal';
 
 interface DocumentUploaderProps {
   id: string;
@@ -51,6 +52,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileError, setFileError] = useState('');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const processingRef = useRef(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,14 +176,14 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                   {formatSize(activeDoc.fileSize)} • เมื่อ {activeDoc.uploadedAt}
                 </p>
                 {activeDoc.dataUrl && (
-                  <a
-                    href={activeDoc.dataUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-[#007AFF] font-semibold hover:underline mt-0.5"
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="inline-flex items-center gap-1 text-[11px] text-[#007AFF] font-semibold hover:underline mt-0.5 cursor-pointer"
                   >
+                    <Eye className="w-3 h-3" />
                     <span>เปิดดูตัวอย่างไฟล์</span>
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
@@ -237,6 +239,16 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             </p>
           </div>
         </div>
+      )}
+
+      {/* Preview Modal for active document */}
+      {isPreviewOpen && activeDoc && (
+        <DocumentViewerModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          document={activeDoc}
+          title={displayTitle || 'เอกสารแนบ'}
+        />
       )}
     </div>
   );

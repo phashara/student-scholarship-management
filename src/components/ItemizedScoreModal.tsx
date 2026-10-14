@@ -33,8 +33,9 @@ import {
   X,
 } from 'lucide-react';
 import { calculateScholarshipScore } from '../data/scholarshipData';
-import { ScholarshipApplication } from '../types';
+import { AttachedDoc, ScholarshipApplication } from '../types';
 import { formatThaiDateTime } from '../utils/dateUtils';
+import { DocumentViewerModal } from './DocumentViewerModal';
 
 interface ItemizedScoreModalProps {
   application: ScholarshipApplication | null;
@@ -53,6 +54,7 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
   const [printNotice, setPrintNotice] = useState<string | null>(null);
+  const [viewerDoc, setViewerDoc] = useState<{ doc: AttachedDoc; title: string } | null>(null);
 
   if (!application) return null;
 
@@ -290,14 +292,18 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#5856D6]/10 text-[#5856D6] font-semibold text-[11px]">
                       📄 มีใบเกรด/Transcript แนบ
                       {application.academicTranscriptDoc.dataUrl && (
-                        <a
-                          href={application.academicTranscriptDoc.dataUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="print:hidden underline font-bold ml-1 hover:text-[#3634A3]"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setViewerDoc({
+                              doc: application.academicTranscriptDoc!,
+                              title: 'ใบรายงานผลการศึกษา (Transcript / ใบแจ้งเกรด)',
+                            })
+                          }
+                          className="print:hidden underline font-bold ml-1 hover:text-[#3634A3] cursor-pointer"
                         >
-                          (ดูไฟล์)
-                        </a>
+                          (เปิดดูไฟล์)
+                        </button>
                       )}
                     </span>
                   ) : (
@@ -309,14 +315,18 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#007AFF]/10 text-[#007AFF] font-semibold text-[11px]">
                       📎 มีหนังสือรับรองรายได้
                       {application.incomeCertificateDoc.dataUrl && (
-                        <a
-                          href={application.incomeCertificateDoc.dataUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="print:hidden underline font-bold ml-1 hover:text-[#0051D5]"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setViewerDoc({
+                              doc: application.incomeCertificateDoc!,
+                              title: 'หนังสือรับรองรายได้ครอบครัว / สลิปเงินเดือน',
+                            })
+                          }
+                          className="print:hidden underline font-bold ml-1 hover:text-[#0051D5] cursor-pointer"
                         >
-                          (ดูไฟล์)
-                        </a>
+                          (เปิดดูไฟล์)
+                        </button>
                       )}
                     </span>
                   )}
@@ -568,6 +578,17 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Document Viewer Modal */}
+      {viewerDoc && (
+        <DocumentViewerModal
+          isOpen={!!viewerDoc}
+          onClose={() => setViewerDoc(null)}
+          document={viewerDoc.doc}
+          title={viewerDoc.title}
+          applicantName={application.fullName}
+        />
+      )}
     </div>
   );
 };

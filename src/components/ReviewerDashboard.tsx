@@ -46,8 +46,9 @@ import {
   saveApplicationOnline,
   saveTimelineConfigOnline,
 } from '../services/firebaseService';
-import { ScholarshipApplication, ScoreBreakdown, TimelineConfig } from '../types';
+import { AttachedDoc, ScholarshipApplication, ScoreBreakdown, TimelineConfig } from '../types';
 import { formatThaiDateTime, parseDateTimestamp } from '../utils/dateUtils';
+import { DocumentViewerModal } from './DocumentViewerModal';
 import { AdminEditApplicantModal } from './AdminEditApplicantModal';
 import { DeleteApplicantModal } from './DeleteApplicantModal';
 import { ItemizedScoreModal } from './ItemizedScoreModal';
@@ -102,6 +103,13 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   // Timeline Config Editor modal
   const [isTimelineEditorOpen, setIsTimelineEditorOpen] = useState<boolean>(false);
   const [timelineConfig, setTimelineConfig] = useState<TimelineConfig>(loadTimelineConfig);
+
+  // Attached document viewer modal
+  const [viewerDocument, setViewerDocument] = useState<{
+    doc: AttachedDoc;
+    title: string;
+    applicantName?: string;
+  } | null>(null);
 
   const currentTimelineConfig = propTimelineConfig || timelineConfig;
 
@@ -708,16 +716,27 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                         {app.academicTranscriptDoc ? (
                           <div className="mt-1">
                             {app.academicTranscriptDoc.dataUrl ? (
-                              <a
-                                href={app.academicTranscriptDoc.dataUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] text-[#007AFF] font-semibold hover:underline"
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setViewerDocument({
+                                    doc: app.academicTranscriptDoc!,
+                                    title: 'ใบรายงานผลการศึกษา (Transcript / ใบแจ้งเกรด)',
+                                    applicantName: app.fullName,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 text-[10px] text-[#5856D6] font-semibold hover:text-[#3634A3] bg-[#5856D6]/10 hover:bg-[#5856D6]/20 px-2 py-0.5 rounded-full transition-colors cursor-pointer"
+                                title="คลิกเพื่อเปิดอ่านไฟล์ใบเกรด / Transcript"
                               >
-                                📄 มีใบเกรด/Transcript
-                              </a>
+                                <span>
+                                  {app.academicTranscriptDoc.fileType?.includes('pdf') ||
+                                  app.academicTranscriptDoc.fileName?.endsWith('.pdf')
+                                    ? '📄 PDF ใบเกรด'
+                                    : '🖼️ ภาพใบเกรด'}
+                                </span>
+                              </button>
                             ) : (
-                              <span className="text-[10px] text-[#007AFF] font-semibold">
+                              <span className="text-[10px] text-[#5856D6] font-semibold">
                                 📄 มีใบเกรด
                               </span>
                             )}
@@ -733,8 +752,36 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                         <div className="text-xs font-semibold text-[#1C1C1E]">
                           {app.familyYearlyIncome ? `${app.familyYearlyIncome} บ./ปี` : '-'}
                         </div>
-                        <div className="text-[11px] text-[#007AFF]">
-                          {app.incomeCertificateDoc ? '📎 มีเอกสารรับรองรายได้' : 'ไม่มีเอกสารแนบ'}
+                        <div className="mt-1">
+                          {app.incomeCertificateDoc ? (
+                            app.incomeCertificateDoc.dataUrl ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setViewerDocument({
+                                    doc: app.incomeCertificateDoc!,
+                                    title: 'หนังสือรับรองรายได้ครอบครัว / สลิปเงินเดือน',
+                                    applicantName: app.fullName,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1 text-[10px] text-[#007AFF] font-semibold hover:text-[#0051D5] bg-[#007AFF]/10 hover:bg-[#007AFF]/20 px-2 py-0.5 rounded-full transition-colors cursor-pointer"
+                                title="คลิกเพื่อเปิดอ่านหนังสือรับรองรายได้"
+                              >
+                                <span>
+                                  {app.incomeCertificateDoc.fileType?.includes('pdf') ||
+                                  app.incomeCertificateDoc.fileName?.endsWith('.pdf')
+                                    ? '📎 PDF รับรองรายได้'
+                                    : '🖼️ ภาพรับรองรายได้'}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-[#007AFF]">
+                                📎 มีเอกสารรับรองรายได้
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-[10px] text-[#8E8E93]">ไม่มีเอกสารแนบ</span>
+                          )}
                         </div>
                       </td>
 
@@ -1350,6 +1397,17 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
         totalCount={applications.length}
         onConfirmDelete={handleConfirmClearAll}
       />
+
+      {/* Document Viewer Modal for Reviewers */}
+      {viewerDocument && (
+        <DocumentViewerModal
+          isOpen={!!viewerDocument}
+          onClose={() => setViewerDocument(null)}
+          document={viewerDocument.doc}
+          title={viewerDocument.title}
+          applicantName={viewerDocument.applicantName}
+        />
+      )}
     </div>
   );
 };

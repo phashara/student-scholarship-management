@@ -1,9 +1,4 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Award,
   CheckCircle2,
@@ -12,19 +7,125 @@ import {
   FileCheck2,
   FileText,
   Loader2,
+  Maximize2,
   Printer,
   ShieldCheck,
   User,
   X,
 } from 'lucide-react';
-import { ScholarshipApplication } from '../types';
+import { AttachedDoc, ScholarshipApplication } from '../types';
 import { formatThaiDateTime } from '../utils/dateUtils';
+import { DocumentViewerModal } from './DocumentViewerModal';
+import {
+  createDocumentBlobUrl,
+  downloadDocument,
+  openDocumentInNewTab,
+} from '../utils/documentViewer';
 
 interface ApplicationSlipModalProps {
   application: ScholarshipApplication | null;
   onClose: () => void;
   onTrackStatus?: () => void;
 }
+
+const InlinePdfViewer: React.FC<{
+  doc: AttachedDoc;
+  title: string;
+  themeColor: 'purple' | 'blue';
+  onOpenModal: () => void;
+}> = ({ doc, title, themeColor, onOpenModal }) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!doc?.dataUrl) return;
+    const url = createDocumentBlobUrl(doc);
+    setBlobUrl(url);
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [doc]);
+
+  const isPurple = themeColor === 'purple';
+
+  return (
+    <div className="space-y-3 pt-1">
+      <div className="p-4 bg-[#F8F9FA] rounded-[16px] border border-black/10 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div
+            className={`w-9 h-9 rounded-[10px] flex items-center justify-center font-bold text-xs ${
+              isPurple ? 'bg-[#5856D6]/15 text-[#5856D6]' : 'bg-[#007AFF]/15 text-[#007AFF]'
+            }`}
+          >
+            PDF
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-[#1C1C1E]">{doc.fileName}</p>
+            <p className="text-[11px] text-[#8E8E93]">
+              ขนาด: {Math.round(doc.fileSize / 1024)} KB • รูปแบบ PDF
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onClick={onOpenModal}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
+              isPurple
+                ? 'bg-[#5856D6] hover:bg-[#4745b8] text-white shadow-xs'
+                : 'bg-[#007AFF] hover:bg-[#0062cc] text-white shadow-xs'
+            }`}
+            title="เปิดอ่านเอกสาร PDF แบบเต็มจอ"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            <span>ขยายอ่านเต็มจอ</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openDocumentInNewTab(doc)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-colors cursor-pointer"
+            title="เปิดอ่านในแท็บใหม่ของเบราว์เซอร์"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-[#007AFF]" />
+            <span>เปิดในแท็บใหม่</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => downloadDocument(doc)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-colors cursor-pointer"
+            title="ดาวน์โหลดไฟล์ PDF ลงเครื่อง"
+          >
+            <Download className="w-3.5 h-3.5 text-[#34C759]" />
+            <span>ดาวน์โหลด</span>
+          </button>
+        </div>
+      </div>
+
+      {blobUrl && (
+        <div className="w-full h-[450px] sm:h-[550px] rounded-[14px] overflow-hidden border border-black/10 bg-white shadow-inner">
+          <object data={blobUrl} type="application/pdf" className="w-full h-full">
+            <iframe src={blobUrl} title={doc.fileName} className="w-full h-full border-0" />
+            <div className="p-6 text-center h-full flex flex-col items-center justify-center space-y-2">
+              <FileText className="w-8 h-8 text-[#007AFF]" />
+              <p className="text-xs text-[#1C1C1E]">
+                หากเบราว์เซอร์ไม่แสดงตัวอย่าง PDF ให้กดปุ่มด้านบนเพื่ออ่านเต็มจอ
+              </p>
+              <button
+                type="button"
+                onClick={onOpenModal}
+                className="px-4 py-1.5 rounded-full bg-[#007AFF] text-white text-xs font-semibold"
+              >
+                เปิดอ่านเอกสาร
+              </button>
+            </div>
+          </object>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
   application,
@@ -33,6 +134,7 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
 }) => {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [printNotice, setPrintNotice] = useState<string | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<{ doc: AttachedDoc; title: string } | null>(null);
 
   if (!application) return null;
 
@@ -560,15 +662,35 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </div>
 
                 {application.academicTranscriptDoc?.dataUrl && (
-                  <a
-                    href={application.academicTranscriptDoc.dataUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="print:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#5856D6]/10 hover:bg-[#5856D6]/20 text-[#5856D6] transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>เปิดดูไฟล์ต้นฉบับ</span>
-                  </a>
+                  <div className="print:hidden flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setViewingDoc({
+                        doc: application.academicTranscriptDoc!,
+                        title: 'ใบรายงานผลการศึกษา (Transcript / ใบแจ้งเกรด)',
+                      })}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#5856D6]/10 hover:bg-[#5856D6]/20 text-[#5856D6] transition-colors cursor-pointer"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>เปิดดูเอกสาร</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openDocumentInNewTab(application.academicTranscriptDoc!)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-colors cursor-pointer"
+                      title="เปิดในแท็บใหม่"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-[#007AFF]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadDocument(application.academicTranscriptDoc!)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-colors cursor-pointer"
+                      title="ดาวน์โหลดไฟล์ PDF"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#34C759]" />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -589,15 +711,15 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                       />
                     </div>
                   ) : application.academicTranscriptDoc.dataUrl ? (
-                    <div className="p-6 bg-[#F8F9FA] rounded-[14px] border border-dashed border-black/20 text-center space-y-2">
-                      <FileText className="w-10 h-10 text-[#5856D6] mx-auto" />
-                      <p className="text-xs font-semibold text-[#1C1C1E]">
-                        ไฟล์เอกสาร PDF: {application.academicTranscriptDoc.fileName}
-                      </p>
-                      <p className="text-[11px] text-[#8E8E93]">
-                        (เอกสารรูปแบบ PDF ถูกแนบและบันทึกในระบบเรียบร้อยแล้ว)
-                      </p>
-                    </div>
+                    <InlinePdfViewer
+                      doc={application.academicTranscriptDoc}
+                      title="ใบรายงานผลการศึกษา (GPAX)"
+                      themeColor="purple"
+                      onOpenModal={() => setViewingDoc({
+                        doc: application.academicTranscriptDoc!,
+                        title: 'ใบรายงานผลการศึกษา (Transcript / ใบแจ้งเกรด)',
+                      })}
+                    />
                   ) : null}
                 </div>
               ) : (
@@ -625,15 +747,35 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                 </div>
 
                 {application.incomeCertificateDoc?.dataUrl && (
-                  <a
-                    href={application.incomeCertificateDoc.dataUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="print:hidden inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>เปิดดูไฟล์ต้นฉบับ</span>
-                  </a>
+                  <div className="print:hidden flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setViewingDoc({
+                        doc: application.incomeCertificateDoc!,
+                        title: 'หนังสือรับรองรายได้ครอบครัว / สลิปเงินเดือน',
+                      })}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] transition-colors cursor-pointer"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>เปิดดูเอกสาร</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openDocumentInNewTab(application.incomeCertificateDoc!)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-colors cursor-pointer"
+                      title="เปิดในแท็บใหม่"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-[#007AFF]" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadDocument(application.incomeCertificateDoc!)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-colors cursor-pointer"
+                      title="ดาวน์โหลดไฟล์ PDF"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#34C759]" />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -654,15 +796,15 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
                       />
                     </div>
                   ) : application.incomeCertificateDoc.dataUrl ? (
-                    <div className="p-6 bg-[#F8F9FA] rounded-[14px] border border-dashed border-black/20 text-center space-y-2">
-                      <FileCheck2 className="w-10 h-10 text-[#007AFF] mx-auto" />
-                      <p className="text-xs font-semibold text-[#1C1C1E]">
-                        ไฟล์เอกสาร PDF: {application.incomeCertificateDoc.fileName}
-                      </p>
-                      <p className="text-[11px] text-[#8E8E93]">
-                        (เอกสารรูปแบบ PDF ถูกแนบและบันทึกในระบบเรียบร้อยแล้ว)
-                      </p>
-                    </div>
+                    <InlinePdfViewer
+                      doc={application.incomeCertificateDoc}
+                      title="หนังสือรับรองรายได้ครอบครัว / สลิปเงินเดือน"
+                      themeColor="blue"
+                      onOpenModal={() => setViewingDoc({
+                        doc: application.incomeCertificateDoc!,
+                        title: 'หนังสือรับรองรายได้ครอบครัว / สลิปเงินเดือน',
+                      })}
+                    />
                   ) : null}
                 </div>
               ) : (
@@ -718,6 +860,17 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Full Document Viewer Modal */}
+      {viewingDoc && (
+        <DocumentViewerModal
+          isOpen={!!viewingDoc}
+          onClose={() => setViewingDoc(null)}
+          document={viewingDoc.doc}
+          title={viewingDoc.title}
+          applicantName={application.fullName}
+        />
+      )}
     </div>
   );
 };

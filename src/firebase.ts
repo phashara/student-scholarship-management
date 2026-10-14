@@ -1,7 +1,14 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
+
+// Mute internal transport-level disconnect logs when offline or connecting
+try {
+  setLogLevel('silent');
+} catch {
+  // ignore
+}
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
@@ -37,8 +44,10 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errString = error instanceof Error ? error.message : String(error);
+  const code = (error as { code?: string })?.code || '';
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errString,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -54,7 +63,18 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+
+  const isPermissionError =
+    code === 'permission-denied' ||
+    errString.includes('insufficient permissions') ||
+    errString.includes('Missing or insufficient permissions') ||
+    errString.includes('permission-denied');
+
+  if (isPermissionError) {
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+  } else {
+    console.warn('Firestore Notice:', errString);
+  }
   return errInfo;
 }
 
