@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
-  Eye,
   FileCheck2,
   FileSpreadsheet,
   Filter,
@@ -36,7 +35,7 @@ import { ScholarshipApplication, TimelineConfig } from '../types';
 interface AnnouncementsSectionProps {
   applications: ScholarshipApplication[];
   timelineConfig: TimelineConfig;
-  onViewApplication: (app: ScholarshipApplication) => void;
+  onViewApplication?: (app: ScholarshipApplication) => void;
   isAdminLoggedIn?: boolean;
 }
 
@@ -518,13 +517,12 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                     <th className="py-3 px-4 text-center">กำหนดมอบทุน</th>
                   </>
                 )}
-                <th className="py-3 px-3 text-center print:hidden">ใบสมัคร</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/[0.05]">
               {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-[#8E8E93] text-xs">
+                  <td colSpan={7} className="py-12 text-center text-[#8E8E93] text-xs">
                     {searchQuery.trim() || selectedDept !== 'all'
                       ? 'ไม่พบข้อมูลนิสิตที่ตรงกับเงื่อนไขการค้นหา'
                       : activeSubTab === 'interview'
@@ -585,18 +583,6 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                         </td>
                       </>
                     )}
-
-                    <td className="py-3 px-3 text-center print:hidden">
-                      <button
-                        type="button"
-                        onClick={() => onViewApplication(app)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] bg-[#F2F2F7] hover:bg-[#007AFF]/10 hover:text-[#007AFF] text-[#1C1C1E] text-[11px] font-semibold transition-colors cursor-pointer"
-                        title="ดูใบสมัครและเอกสารแนบของนิสิต"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>ดูใบสมัคร</span>
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}
