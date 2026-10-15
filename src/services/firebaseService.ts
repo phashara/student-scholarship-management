@@ -87,11 +87,8 @@ export function subscribeApplications(
     { includeMetadataChanges: true },
     (snapshot) => {
       if (snapshot.metadata.hasPendingWrites) return;
-      // Firestore's in-memory cache may be empty or only contain one recently
-      // submitted application. It is never authoritative for the full register.
       if (snapshot.metadata.fromCache) {
         onStatus?.('cache');
-        return;
       }
       const remoteApps: ScholarshipApplication[] = [];
       const snapshotIds = new Set<string>();
@@ -141,7 +138,9 @@ export function subscribeApplications(
       }
 
       onUpdate(remoteApps);
-      onStatus?.('server');
+      if (!snapshot.metadata.fromCache) {
+        onStatus?.('server');
+      }
     },
     (error) => {
       handleFirestoreError(error, OperationType.GET, APPLICATIONS_COLLECTION);

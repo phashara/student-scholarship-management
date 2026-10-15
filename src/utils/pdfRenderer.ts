@@ -6,8 +6,16 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Configure the worker source for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+// Configure the worker source for PDF.js safely
+try {
+  if (typeof window !== 'undefined' && pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+    if (typeof pdfjsWorker === 'string' && pdfjsWorker.length > 0) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+    }
+  }
+} catch (e) {
+  console.warn('PDF.js worker initialization bypassed:', e);
+}
 
 /**
  * Converts a base64 Data URL to a Uint8Array

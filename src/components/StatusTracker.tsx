@@ -55,7 +55,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
   const interviewDateBadge =
     timelineConfig?.criticalNotice?.interviewDate?.split('(')[0]?.replace('เวลา', '')?.trim() ||
     timelineConfig?.steps?.find((s) => s.id === 'step-3')?.dateStr?.split('(')[0]?.trim() ||
-    '23 กันยายน 2569';
+    '15 ตุลาคม 2569';
 
   const getStatusBadge = (status: ScholarshipApplication['status']) => {
     switch (status) {
@@ -212,7 +212,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
                         <strong>วันและเวลา:</strong>{' '}
                         {timelineConfig?.criticalNotice?.interviewDate ||
                           timelineConfig?.steps?.find((s) => s.id === 'step-3')?.dateStr ||
-                          '23 กันยายน 2569 เวลา 17.00 น. เป็นต้นไป'}
+                          '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป'}
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
@@ -220,7 +220,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
                       <div>
                         <strong>สถานที่:</strong>{' '}
                         {timelineConfig?.criticalNotice?.interviewLocation ||
-                          'ห้องประชุมราชพฤกษ์ 3 ชั้น 3 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร'}
+                          'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร'}
                       </div>
                     </div>
                   </div>

@@ -32,10 +32,10 @@ export const ApplicationClosedNotice: React.FC<ApplicationClosedNoticeProps> = (
   const academicYear = timelineConfig?.academicYear || '2569';
   const nextYear = String(parseInt(academicYear, 10) + 1);
   const interviewDate =
-    timelineConfig?.criticalNotice?.interviewDate || '23 กันยายน 2569 เวลา 17.00 น. เป็นต้นไป';
+    timelineConfig?.criticalNotice?.interviewDate || '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
   const interviewLocation =
     timelineConfig?.criticalNotice?.interviewLocation ||
-    'ห้องประชุมราชพฤกษ์ 3 ชั้น 3 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร';
+    'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร';
   const contactPhone = timelineConfig?.contactPhone || '055-961911';
 
   return (

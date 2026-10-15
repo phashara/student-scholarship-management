@@ -29,7 +29,7 @@ import {
   User,
   Users,
 } from 'lucide-react';
-import { OFFICIAL_DEPARTMENTS_2569 } from '../data/scholarshipData';
+import { OFFICIAL_DEPARTMENTS_2569, calculateScholarshipScore } from '../data/scholarshipData';
 import { ScholarshipApplication, TimelineConfig } from '../types';
 
 interface AnnouncementsSectionProps {
@@ -65,35 +65,116 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
   }, [applications, timelineConfig?.academicYear]);
 
   // Interview candidates list: status in ['eligible_for_interview', 'interviewed', 'awarded']
+  // Deduplicated by student ID/name and sorted by evaluation score (คะแนนความจำเป็น) descending
   const interviewCandidates = useMemo(() => {
-    return applications.filter((app) => {
+    if (!Array.isArray(applications)) return [];
+
+    const rawList = applications.filter((app) => {
+      if (!app) return false;
       // Must match academic year
-      if (selectedAcademicYear !== 'all' && (app.academicYear || '2569') !== selectedAcademicYear) return false;
+      const appYear = String(app.academicYear || '2569');
+      if (selectedAcademicYear !== 'all' && appYear !== selectedAcademicYear) return false;
       // Must have passed screening to interview stage
       return app.status === 'eligible_for_interview' || app.status === 'interviewed' || app.status === 'awarded';
     });
+
+    // Deduplicate duplicate applications (e.g. repeated student submissions)
+    const seen = new Map<string, { app: ScholarshipApplication; score: number }>();
+    for (const app of rawList) {
+      if (!app) continue;
+      const sid = app.studentId != null ? String(app.studentId).trim() : '';
+      const fname = app.fullName != null ? String(app.fullName).trim() : '';
+      const key = sid || fname || String(app.id || Math.random());
+      let score = 0;
+      try {
+        const breakdown = calculateScholarshipScore(app);
+        score = typeof breakdown?.totalScore === 'number' ? breakdown.totalScore : 0;
+      } catch {
+        score = 0;
+      }
+
+      if (!seen.has(key)) {
+        seen.set(key, { app, score });
+      } else {
+        const existing = seen.get(key)!;
+        if (score > existing.score) {
+          seen.set(key, { app, score });
+        }
+      }
+    }
+
+    const uniqueList = Array.from(seen.values());
+
+    // Sort by evaluation score descending (เรียงตามคะแนนความจำเป็นมากไปน้อย)
+    return uniqueList
+      .sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+        const sidA = a.app.studentId != null ? String(a.app.studentId) : '';
+        const sidB = b.app.studentId != null ? String(b.app.studentId) : '';
+        return sidA.localeCompare(sidB);
+      })
+      .map((item) => item.app);
   }, [applications, selectedAcademicYear]);
 
   // Awarded recipients list: status === 'awarded'
   const awardedRecipients = useMemo(() => {
-    return applications.filter((app) => {
-      if (selectedAcademicYear !== 'all' && (app.academicYear || '2569') !== selectedAcademicYear) return false;
+    if (!Array.isArray(applications)) return [];
+
+    const rawList = applications.filter((app) => {
+      if (!app) return false;
+      const appYear = String(app.academicYear || '2569');
+      if (selectedAcademicYear !== 'all' && appYear !== selectedAcademicYear) return false;
       return app.status === 'awarded';
     });
+
+    const seen = new Map<string, { app: ScholarshipApplication; score: number }>();
+    for (const app of rawList) {
+      if (!app) continue;
+      const sid = app.studentId != null ? String(app.studentId).trim() : '';
+      const fname = app.fullName != null ? String(app.fullName).trim() : '';
+      const key = sid || fname || String(app.id || Math.random());
+      let score = 0;
+      try {
+        const breakdown = calculateScholarshipScore(app);
+        score = typeof breakdown?.totalScore === 'number' ? breakdown.totalScore : 0;
+      } catch {
+        score = 0;
+      }
+
+      if (!seen.has(key)) {
+        seen.set(key, { app, score });
+      } else {
+        const existing = seen.get(key)!;
+        if (score > existing.score) {
+          seen.set(key, { app, score });
+        }
+      }
+    }
+
+    return Array.from(seen.values())
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const sidA = a.app.studentId != null ? String(a.app.studentId) : '';
+        const sidB = b.app.studentId != null ? String(b.app.studentId) : '';
+        return sidA.localeCompare(sidB);
+      })
+      .map((item) => item.app);
   }, [applications, selectedAcademicYear]);
 
   // Filtered by department and search query
   const currentList = activeSubTab === 'interview' ? interviewCandidates : awardedRecipients;
   const filteredList = useMemo(() => {
     return currentList.filter((app) => {
+      if (!app) return false;
       if (selectedDept !== 'all' && app.department !== selectedDept) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        return (
-          (app.studentId || '').toLowerCase().includes(q) ||
-          (app.fullName || '').toLowerCase().includes(q) ||
-          (app.department || '').toLowerCase().includes(q)
-        );
+        const sid = String(app.studentId || '').toLowerCase();
+        const name = String(app.fullName || '').toLowerCase();
+        const dept = String(app.department || '').toLowerCase();
+        return sid.includes(q) || name.includes(q) || dept.includes(q);
       }
       return true;
     });
@@ -101,18 +182,30 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
 
   // Stats calculation
   const totalAwardedBudget = useMemo(() => {
-    return awardedRecipients.reduce((sum, a) => sum + (a.awardedAmount || 10000), 0);
+    return awardedRecipients.reduce((sum, a) => sum + (Number(a?.awardedAmount) || 10000), 0);
   }, [awardedRecipients]);
 
   const interviewDateStr =
     timelineConfig?.criticalNotice?.interviewDate ||
     timelineConfig?.steps?.find((s) => s.id === 'step-3')?.dateStr ||
-    '23 กันยายน 2569 (เวลา 17.00 น. เป็นต้นไป)';
+    '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
 
   const interviewLocationStr =
     timelineConfig?.criticalNotice?.interviewLocation ||
     timelineConfig?.steps?.find((s) => s.id === 'step-3')?.location ||
-    'ห้องประชุมราชพฤกษ์ 3 คณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร';
+    'ห้องประชุมราชพฤกษ์ 1 คณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร';
+
+  // Date only for the table row column after student name (ตัดเวลา 17.00 น. ออก เหลือเฉพาะวันที่ 15 ตุลาคม 2569)
+  const interviewDateTableStr = useMemo(() => {
+    return (
+      interviewDateStr
+        .replace(/\s*\(?เวลา\s*17\.00\s*น\.[^)]*\)?/gi, '')
+        .replace(/\s*\(?เวลา\s*\d{1,2}[:.]\d{2}\s*น\.[^)]*\)?/gi, '')
+        .replace(/\s*เป็นต้นไป/gi, '')
+        .replace(/\s*\(?\s*\)?/g, '')
+        .trim() || '15 ตุลาคม 2569'
+    );
+  }, [interviewDateStr]);
 
   const awardDateStr =
     timelineConfig?.steps?.find((s) => s.id === 'step-5' || s.title?.includes('พิธีมอบทุน'))?.dateStr ||
@@ -556,7 +649,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                     {activeSubTab === 'interview' ? (
                       <>
                         <td className="py-3 px-4 text-[#1C1C1E]">
-                          <div className="font-semibold text-xs">{interviewDateStr}</div>
+                          <div className="font-semibold text-xs">{interviewDateTableStr}</div>
                           <div className="text-[11px] text-[#8E8E93] truncate max-w-[200px]">
                             {interviewLocationStr}
                           </div>

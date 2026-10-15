@@ -450,7 +450,7 @@ export const TimelineEditorModal: React.FC<TimelineEditorModalProps> = ({
                       <div className="md:col-span-2">
                         <label className="block text-xs font-semibold text-[#1C1C1E] mb-1 flex items-center gap-1">
                           <MapPin className="w-3.5 h-3.5 text-[#007AFF]" />
-                          <span>สถานที่จัดกิจกรรม (ถ้ามี เช่น ห้องประชุมราชพฤกษ์ 3)</span>
+                          <span>สถานที่จัดกิจกรรม (ถ้ามี เช่น ห้องประชุมราชพฤกษ์ 1)</span>
                         </label>
                         <input
                           type="text"
@@ -599,7 +599,7 @@ export const TimelineEditorModal: React.FC<TimelineEditorModalProps> = ({
                             criticalNotice: { ...prev.criticalNotice, interviewDate: e.target.value },
                           }))
                         }
-                        placeholder="23 กันยายน 2569 เวลา 17.00 น. เป็นต้นไป"
+                        placeholder="15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป"
                         className="w-full text-xs px-3 py-2 bg-white rounded-[10px] border border-black/[0.1] focus:outline-none focus:ring-2 focus:ring-[#FF3B30]"
                       />
                     </div>
@@ -616,7 +616,7 @@ export const TimelineEditorModal: React.FC<TimelineEditorModalProps> = ({
                             criticalNotice: { ...prev.criticalNotice, interviewLocation: e.target.value },
                           }))
                         }
-                        placeholder="ห้องประชุมราชพฤกษ์ 3 ชั้น 3 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร"
+                        placeholder="ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร"
                         className="w-full text-xs px-3 py-2 bg-white rounded-[10px] border border-black/[0.1] focus:outline-none focus:ring-2 focus:ring-[#FF3B30]"
                       />
                     </div>

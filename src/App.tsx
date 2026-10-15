@@ -172,7 +172,7 @@ export default function App() {
             <span className="ml-3 text-xs">ลองใหม่ได้ทุก 15 วินาที</span>
           </div>
         )}
-        {needsApplications && !applicationsAreCurrent && applications.length === 0 ? (
+        {(activeTab === 'applicants' || activeTab === 'admin') && hasReadError && applications.length === 0 ? (
           <div className="rounded-2xl bg-white p-8 text-center border border-black/10">
             <h2 className="font-bold text-lg">ยังแสดงข้อมูลผู้สมัครไม่ได้</h2>
             <p className="mt-2 text-sm">รอการเชื่อมต่อฐานข้อมูลสำเร็จ หรือใช้ปุ่มลองเชื่อมต่อด้านบน</p>
@@ -423,7 +423,7 @@ export default function App() {
                 <br />
                 • {timelineConfig.steps?.[1]?.title || 'ประกาศผู้มีสิทธิ์สัมภาษณ์'}: {timelineConfig.steps?.[1]?.dateStr || '18 กันยายน 2569'}
                 <br />
-                • {timelineConfig.steps?.[2]?.title || 'สัมภาษณ์ทุน'}: {timelineConfig.steps?.[2]?.dateStr || '23 กันยายน 2569'} {timelineConfig.steps?.[2]?.location ? `ณ ${timelineConfig.steps[2].location}` : ''}
+                • {timelineConfig.steps?.[2]?.title || 'สัมภาษณ์ทุน'}: {timelineConfig.steps?.[2]?.dateStr || '15 ตุลาคม 2569'} {timelineConfig.steps?.[2]?.location ? `ณ ${timelineConfig.steps[2].location}` : ''}
               </p>
               <p className="text-[10px] text-[#FF3B30] font-semibold">
                 * {timelineConfig.criticalNotice?.description || 'หากไม่เข้ารับการสัมภาษณ์ จะถือว่าสละสิทธิ์'}

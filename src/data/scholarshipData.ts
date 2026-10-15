@@ -560,10 +560,10 @@ export const TIMELINE_2569: AnnouncementItem[] = [
   },
   {
     id: 'step-3',
-    dateStr: '23 กันยายน 2569 (เวลา 17.00 น. เป็นต้นไป)',
+    dateStr: '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป',
     title: 'สัมภาษณ์ทุนการศึกษา',
-    subtitle: 'ณ ห้องประชุมราชพฤกษ์ 3 ชั้น 3 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร (แต่งกายด้วยชุดเครื่องแบบนิสิตเรียบร้อย)',
-    location: 'ห้องประชุมราชพฤกษ์ 3 ชั้น 3 อาคารคณะสังคมศาสตร์',
+    subtitle: 'ณ ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร (แต่งกายด้วยชุดเครื่องแบบนิสิตเรียบร้อย)',
+    location: 'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์',
     iconName: 'Users',
     highlight: true,
   },
@@ -594,9 +594,9 @@ export const DEFAULT_TIMELINE_CONFIG: TimelineConfig = {
     title: 'หมายเหตุสำคัญมาก (เงื่อนไขการสละสิทธิ์)',
     description:
       'หากนิสิตไม่เข้ารับการสัมภาษณ์ตามวันและเวลาที่กำหนด จะถือว่าสละสิทธิ์การพิจารณาทุนครั้งนี้',
-    interviewDate: '23 กันยายน 2569 เวลา 17.00 น. เป็นต้นไป',
+    interviewDate: '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป',
     interviewLocation:
-      'ห้องประชุมราชพฤกษ์ 3 ชั้น 3 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร',
+      'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร',
   },
   steps: TIMELINE_2569,
   qualifications: [
@@ -635,20 +635,56 @@ export function loadTimelineConfig(): TimelineConfig {
       return DEFAULT_TIMELINE_CONFIG;
     }
     const steps = (parsed.steps as AnnouncementItem[]).map((st) => {
-      if (st.id === 'step-5' && (st.dateStr.includes('ตุลาคม') || st.dateStr.includes('28 พฤศจิกายน'))) {
+      if (!st) return st;
+      if (st.id === 'step-3') {
+        let updatedDate = typeof st.dateStr === 'string' ? st.dateStr : '';
+        if (updatedDate.includes('23 กันยายน')) {
+          updatedDate = '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
+        }
+        let updatedLocation = typeof st.location === 'string' ? st.location : '';
+        if (updatedLocation.includes('ราชพฤกษ์ 3')) {
+          updatedLocation = 'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์';
+        }
+        let updatedSub = typeof st.subtitle === 'string' ? st.subtitle : '';
+        if (updatedSub.includes('ราชพฤกษ์ 3')) {
+          updatedSub = updatedSub.replace(/ราชพฤกษ์ 3/g, 'ราชพฤกษ์ 1');
+        }
+        return {
+          ...st,
+          dateStr: updatedDate,
+          location: updatedLocation,
+          subtitle: updatedSub,
+        };
+      }
+      if (st.id === 'step-5' && typeof st.dateStr === 'string' && (st.dateStr.includes('ตุลาคม') || st.dateStr.includes('28 พฤศจิกายน'))) {
         return { ...st, dateStr: '6 พฤศจิกายน 2569 (เวลา 08.30 - 11.30 น.)' };
       }
       return st;
     });
-    return {
+
+    const criticalNotice = {
+      ...DEFAULT_TIMELINE_CONFIG.criticalNotice,
+      ...(parsed.criticalNotice || {}),
+    };
+    if (criticalNotice.interviewDate?.includes('23 กันยายน')) {
+      criticalNotice.interviewDate = '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
+    }
+    if (criticalNotice.interviewLocation?.includes('ราชพฤกษ์ 3')) {
+      criticalNotice.interviewLocation = 'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร';
+    }
+
+    const mergedConfig: TimelineConfig = {
       ...DEFAULT_TIMELINE_CONFIG,
       ...parsed,
       steps,
-      criticalNotice: {
-        ...DEFAULT_TIMELINE_CONFIG.criticalNotice,
-        ...(parsed.criticalNotice || {}),
-      },
+      criticalNotice,
     };
+    // Persist migrated config
+    try {
+      localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(mergedConfig));
+    } catch {}
+
+    return mergedConfig;
   } catch (e) {
     console.error('Failed to load timeline config', e);
     return DEFAULT_TIMELINE_CONFIG;

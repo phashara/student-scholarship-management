@@ -135,7 +135,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   const interviewDateDisplay =
     currentTimelineConfig?.criticalNotice?.interviewDate?.split('(')[0]?.replace('เวลา', '')?.trim() ||
     currentTimelineConfig?.steps?.find((s) => s.id === 'step-3')?.dateStr?.split('(')[0]?.trim() ||
-    '23 กันยายน 2569';
+    '15 ตุลาคม 2569';
 
   const handleSaveScoreNotes = async (appId: string, notes: string) => {
     const target = applications.find((a) => a.id === appId);
