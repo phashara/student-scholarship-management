@@ -26,6 +26,7 @@ import {
   RenderedPdfPage,
   printDirectPdf,
 } from '../utils/pdfRenderer';
+import { downloadElementAsPdf, getStudentPdfFileName } from '../utils/pdfExport';
 
 interface ApplicationSlipModalProps {
   application: ScholarshipApplication | null;
@@ -204,11 +205,27 @@ export const ApplicationSlipModal: React.FC<ApplicationSlipModalProps> = ({
     isIncomeDocImage,
   ]);
 
-  // Print / Save as PDF via native vector print engine
-  const handleDownloadPdf = () => {
-    setPrintNotice('ระบบเปิดหน้าต่างพิมพ์ ให้เลือกเครื่องพิมพ์ปลายทางเป็น "บันทึกเป็น PDF" (Save as PDF)');
-    setTimeout(() => setPrintNotice(null), 4500);
-    handlePrint();
+  // Direct PDF download saving directly to user's device with student name format
+  const handleDownloadPdf = async () => {
+    if (isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    setPrintNotice('กำลังแปลงเอกสารและดาวน์โหลดไฟล์ PDF ลงเครื่องของคุณ...');
+    try {
+      const fileName = getStudentPdfFileName(application.fullName, application.studentId);
+      const success = await downloadElementAsPdf('printable-application-slip', fileName);
+      if (success) {
+        setPrintNotice(`ดาวน์โหลดไฟล์ "${fileName}" เรียบร้อยแล้ว`);
+      } else {
+        // Fallback to print if canvas fails
+        handlePrint();
+      }
+    } catch (err) {
+      console.error('PDF download error:', err);
+      handlePrint();
+    } finally {
+      setIsDownloadingPdf(false);
+      setTimeout(() => setPrintNotice(null), 4000);
+    }
   };
 
   // Robust isolated iframe printing with refined, compact typography

@@ -36,6 +36,7 @@ import { calculateScholarshipScore } from '../data/scholarshipData';
 import { AttachedDoc, ScholarshipApplication } from '../types';
 import { formatThaiDateTime } from '../utils/dateUtils';
 import { DocumentViewerModal } from './DocumentViewerModal';
+import { downloadElementAsPdf, getStudentPdfFileName } from '../utils/pdfExport';
 
 interface ItemizedScoreModalProps {
   application: ScholarshipApplication | null;
@@ -61,11 +62,26 @@ export const ItemizedScoreModal: React.FC<ItemizedScoreModalProps> = ({
   const scoreBreakdown = calculateScholarshipScore(application);
   const itemizedList = scoreBreakdown.itemizedScores || [];
 
-  // Print / Save as PDF via native vector print engine
-  const handleDownloadPdf = () => {
-    setPrintNotice('ระบบเปิดหน้าต่างพิมพ์ ให้เลือกเครื่องพิมพ์ปลายทางเป็น "บันทึกเป็น PDF" (Save as PDF)');
-    setTimeout(() => setPrintNotice(null), 4000);
-    handlePrint();
+  // Direct PDF download saving directly to user's device with student name format
+  const handleDownloadPdf = async () => {
+    if (isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    setPrintNotice('กำลังแปลงเอกสารและดาวน์โหลดไฟล์ PDF ลงเครื่องของคุณ...');
+    try {
+      const fileName = getStudentPdfFileName(application.fullName, application.studentId);
+      const success = await downloadElementAsPdf('printable-itemized-score-sheet', fileName);
+      if (success) {
+        setPrintNotice(`ดาวน์โหลดไฟล์ "${fileName}" เรียบร้อยแล้ว`);
+      } else {
+        handlePrint();
+      }
+    } catch (err) {
+      console.error('PDF download error:', err);
+      handlePrint();
+    } finally {
+      setIsDownloadingPdf(false);
+      setTimeout(() => setPrintNotice(null), 4000);
+    }
   };
 
   // Robust isolated iframe printing (works in iframe sandboxes & prevents blank page)
