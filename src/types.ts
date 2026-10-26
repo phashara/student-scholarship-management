@@ -178,4 +178,5 @@ export interface TimelineConfig {
   systemPhase?: ScholarshipSystemPhase;
   closedNoticeTitle?: string;
   closedNoticeMessage?: string;
+  version?: string;
 }

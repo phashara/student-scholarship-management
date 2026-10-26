@@ -23,6 +23,7 @@ import {
   Megaphone,
   Phone,
   Printer,
+  RefreshCw,
   Search,
   ShieldAlert,
   Sparkles,
@@ -37,6 +38,7 @@ interface AnnouncementsSectionProps {
   timelineConfig: TimelineConfig;
   onViewApplication?: (app: ScholarshipApplication) => void;
   isAdminLoggedIn?: boolean;
+  onRefreshApplications?: () => void;
 }
 
 export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
@@ -44,6 +46,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
   timelineConfig,
   onViewApplication,
   isAdminLoggedIn = false,
+  onRefreshApplications,
 }) => {
   // Tab: 'interview' (รายชื่อผู้มีสิทธิ์สัมภาษณ์) or 'awarded' (รายชื่อผู้ได้รับทุนการศึกษา)
   const [activeSubTab, setActiveSubTab] = useState<'interview' | 'awarded'>('interview');
@@ -401,6 +404,17 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
               )}
             </button>
 
+            {onRefreshApplications && (
+              <button
+                onClick={onRefreshApplications}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white hover:bg-[#F2F2F7] text-[#1C1C1E] border border-black/[0.1] text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
+                title="ดึงข้อมูลล่าสุดจากฐานข้อมูลระบบ"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-[#007AFF]" />
+                <span>รีเฟรชข้อมูล</span>
+              </button>
+            )}
+
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#007AFF] hover:bg-[#0066d6] text-white text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-xs"
@@ -670,9 +684,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                 filteredList.map((app, index) => (
                   <tr key={app.id || index} className="hover:bg-[#F8F9FA] transition-colors">
                     <td className="py-3 px-3.5 text-center font-mono font-bold text-[#8E8E93]">
-                      {app.finalRank !== undefined && app.finalRank !== null && String(app.finalRank).trim() !== ''
-                        ? Number(app.finalRank)
-                        : index + 1}
+                      {index + 1}
                     </td>
                     <td className="py-3 px-3.5 font-mono font-bold text-[#007AFF]">
                       {app.studentId || '-'}
@@ -716,7 +728,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                         </td>
                         <td className="py-3 px-4 text-center">
                           <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#34C759]/15 text-[#248A3D] border border-[#34C759]/30">
-                            ศุกร์ที่ 6 พ.ย. 2569 (08.30 - 12.00 น.)
+                            ศุกร์ที่ 6 พ.ย. 2569
                           </span>
                         </td>
                       </>

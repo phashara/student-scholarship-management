@@ -73,7 +73,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!needsApplications) return;
     setApplicationReadStatus('loading');
     const unsubscribeApps = subscribeApplications(
       setApplications,
@@ -81,7 +80,7 @@ export default function App() {
       setApplicationReadStatus
     );
     return unsubscribeApps;
-  }, [needsApplications, refreshVersion]);
+  }, [refreshVersion]);
 
   useEffect(() => {
     const unsubscribeTimeline = subscribeTimelineConfig((remoteConfig) => {
@@ -209,6 +208,7 @@ export default function App() {
             timelineConfig={timelineConfig}
             onViewApplication={(app) => setSelectedApplication(app)}
             isAdminLoggedIn={isAdminLoggedIn}
+            onRefreshApplications={refreshApplications}
           />
         )}
 

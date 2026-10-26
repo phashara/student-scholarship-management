@@ -325,6 +325,12 @@ export function subscribeTimelineConfig(
         const data = normalizeTimelineConfig(rawData);
         saveLocalTimelineConfig(data);
         onUpdate(data);
+
+        // Self-heal cloud timeline if it had legacy 28 or old schedule format
+        const rawStr = JSON.stringify(rawData);
+        if (rawStr.includes('28') || rawStr.includes('11.30') || !rawData.version || rawData.version !== data.version) {
+          saveTimelineConfigOnline(data).catch(() => {});
+        }
       } else {
         const local = loadLocalTimelineConfig();
         onUpdate(local);

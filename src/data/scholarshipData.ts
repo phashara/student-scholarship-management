@@ -618,6 +618,7 @@ export const DEFAULT_TIMELINE_CONFIG: TimelineConfig = {
     'ขณะนี้สิ้นสุดระยะเวลาการยื่นแบบคำขอรับทุนการศึกษาตามประกาศคณะสังคมศาสตร์แล้ว คณะกรรมการกำลังอยู่ระหว่างการตรวจสอบเอกสารและประเมินคุณสมบัติของผู้สมัครทั้งหมด',
   lastUpdatedAt: '2026-09-16 09:00',
   lastUpdatedBy: 'งานกิจการนิสิตและศิษย์เก่าสัมพันธ์ คณะสังคมศาสตร์',
+  version: '2569.5',
 };
 
 export const TIMELINE_STORAGE_KEY = 'nu_socsci_scholarship_timeline_config_2569';
@@ -631,13 +632,38 @@ export function normalizeTimelineConfig(config?: TimelineConfig | null): Timelin
 
   const steps = rawSteps.map((st) => {
     if (!st) return st;
-    if (st.id === 'step-3') {
+
+    // Fix Step 1 (รับสมัคร)
+    if (st.id === 'step-1' || (typeof st.title === 'string' && st.title.includes('กรอกใบสมัคร'))) {
+      return {
+        ...st,
+        dateStr: 'ตั้งแต่บัดนี้ – 15 กันยายน 2569',
+        title: 'กรอกใบสมัครขอรับทุนการศึกษาออนไลน์ (Module 0-8)',
+      };
+    }
+
+    // Fix Step 2 (ประกาศรายชื่อผู้มีสิทธิ์สัมภาษณ์: 18 กันยายน 2569, ล้างวันที่ 28 ที่อาจค้างในเครื่องอื่น)
+    if (st.id === 'step-2' || (typeof st.title === 'string' && st.title.includes('ประกาศรายชื่อ'))) {
       let updatedDate = typeof st.dateStr === 'string' ? st.dateStr : '';
-      if (updatedDate.includes('23 กันยายน')) {
+      if (updatedDate.includes('28') || !updatedDate) {
+        updatedDate = '18 กันยายน 2569';
+      }
+      return {
+        ...st,
+        dateStr: updatedDate,
+        title: 'ประกาศรายชื่อนิสิตผู้มีสิทธิเข้าสัมภาษณ์ทุน',
+        subtitle: 'ตรวจสอบรายชื่อผ่านระบบนี้ และทางเพจเฟซบุ๊ก "งานกิจการนิสิต คณะสังคมศาสตร์ ม.นเรศวร"',
+      };
+    }
+
+    // Fix Step 3 (สัมภาษณ์: 15 ตุลาคม 2569 ห้องประชุมราชพฤกษ์ 1)
+    if (st.id === 'step-3' || (typeof st.title === 'string' && st.title.includes('สัมภาษณ์'))) {
+      let updatedDate = typeof st.dateStr === 'string' ? st.dateStr : '';
+      if (updatedDate.includes('23 กันยายน') || updatedDate.includes('28') || !updatedDate) {
         updatedDate = '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
       }
       let updatedLocation = typeof st.location === 'string' ? st.location : '';
-      if (updatedLocation.includes('ราชพฤกษ์ 3')) {
+      if (updatedLocation.includes('ราชพฤกษ์ 3') || !updatedLocation) {
         updatedLocation = 'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์';
       }
       let updatedSub = typeof st.subtitle === 'string' ? st.subtitle : '';
@@ -651,6 +677,8 @@ export function normalizeTimelineConfig(config?: TimelineConfig | null): Timelin
         subtitle: updatedSub,
       };
     }
+
+    // Fix Step 5 (พิธีมอบทุนการศึกษา ในงานวันคล้ายวันสถาปนาคณะสังคมศาสตร์)
     if (st.id === 'step-5' || (typeof st.title === 'string' && (st.title.includes('สถาปนา') || st.title.includes('มอบทุน')))) {
       return {
         ...st,
@@ -660,6 +688,15 @@ export function normalizeTimelineConfig(config?: TimelineConfig | null): Timelin
         title: 'พิธีมอบทุนการศึกษา ในงานวันคล้ายวันสถาปนาคณะสังคมศาสตร์',
       };
     }
+
+    // General fallback for any remaining 28 กันยายน
+    if (typeof st.dateStr === 'string' && st.dateStr.includes('28 กันยายน')) {
+      return {
+        ...st,
+        dateStr: st.dateStr.replace(/28 กันยายน/g, '18 กันยายน'),
+      };
+    }
+
     return st;
   });
 
@@ -667,7 +704,7 @@ export function normalizeTimelineConfig(config?: TimelineConfig | null): Timelin
     ...DEFAULT_TIMELINE_CONFIG.criticalNotice,
     ...(config.criticalNotice || {}),
   };
-  if (criticalNotice.interviewDate?.includes('23 กันยายน')) {
+  if (criticalNotice.interviewDate?.includes('23 กันยายน') || criticalNotice.interviewDate?.includes('28')) {
     criticalNotice.interviewDate = '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
   }
   if (criticalNotice.interviewLocation?.includes('ราชพฤกษ์ 3')) {
@@ -677,6 +714,7 @@ export function normalizeTimelineConfig(config?: TimelineConfig | null): Timelin
   return {
     ...DEFAULT_TIMELINE_CONFIG,
     ...config,
+    version: DEFAULT_TIMELINE_CONFIG.version,
     steps,
     criticalNotice,
   };
@@ -692,7 +730,7 @@ export function loadTimelineConfig(): TimelineConfig {
     const parsed = JSON.parse(raw);
     const normalized = normalizeTimelineConfig(parsed);
 
-    // Persist migrated config
+    // Persist migrated config to keep cache up to date on all machines
     try {
       localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(normalized));
     } catch {}

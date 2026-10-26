@@ -14,6 +14,7 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Cloud,
   Coins,
   ClipboardList,
   Download,
@@ -26,6 +27,7 @@ import {
   Heart,
   HelpCircle,
   Layers,
+  Loader2,
   Megaphone,
   Pencil,
   RotateCcw,
@@ -145,6 +147,13 @@ const AllocationRow: React.FC<AllocationRowProps> = ({
             min="1"
             value={rankInput}
             onChange={(e) => setRankInput(e.target.value)}
+            onBlur={() => {
+              const val = rankInput.trim() ? parseInt(rankInput) : undefined;
+              if (val !== app.finalRank) {
+                const num = parseFloat(amountStr) || (app.awardedAmount || 10000);
+                onSave(app, currentStatus, num, notesStr, val);
+              }
+            }}
             placeholder={String(rank)}
             title="พิมพ์อันดับมติคณะกรรมการที่นี่ (เช่น 1, 2, 3...)"
             className={`w-12 px-1.5 py-1 text-center font-mono font-bold text-xs rounded-[10px] border outline-none transition-all ${
@@ -155,11 +164,11 @@ const AllocationRow: React.FC<AllocationRowProps> = ({
           />
           {app.finalRank ? (
             <span className="text-[9px] font-bold text-[#b06000] bg-[#FF9500]/15 px-1.5 py-0.2 rounded-full">
-              มติ #{app.finalRank}
+              มติ: {app.finalRank}
             </span>
           ) : (
             <span className="text-[9px] text-[#8E8E93]" title="อันดับตามคะแนนความจำเป็นก่อนสัมภาษณ์">
-              เดิม #{rank}
+              เดิม: {rank}
             </span>
           )}
         </div>
@@ -424,6 +433,28 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
       setTimelineConfig(propTimelineConfig);
     }
   }, [propTimelineConfig]);
+
+  const [isSyncingToCloud, setIsSyncingToCloud] = useState(false);
+
+  const handleBatchSyncToCloud = async () => {
+    setIsSyncingToCloud(true);
+    try {
+      let count = 0;
+      for (const item of applications) {
+        await saveApplicationOnline(item);
+        count++;
+      }
+      if (currentTimelineConfig) {
+        await saveTimelineConfigOnline(currentTimelineConfig);
+      }
+      showToast(`ซิงก์ข้อมูลทั้งหมด ${count} รายการและกำหนดการขึ้น Cloud สำเร็จแล้ว ทุกเครื่องจะเห็นข้อมูลตรงกันทันที`);
+    } catch (e) {
+      console.error(e);
+      showToast('เกิดข้อผิดพลาดในการซิงก์ข้อมูล');
+    } finally {
+      setIsSyncingToCloud(false);
+    }
+  };
 
   const availableAcademicYears = useMemo(() => {
     const years = new Set<string>();
@@ -818,8 +849,8 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
       setTimeout(() => setSavedSuccessId(null), 2500);
       showToast(
         status === 'awarded'
-          ? `อนุมัติทุน ฿${(resolvedAmount || 10000).toLocaleString()}${finalRank ? ` (มติอันดับ #${finalRank})` : ''} แก่ ${targetApp.fullName} เรียบร้อยแล้ว (เชื่อมต่อหน้าประกาศผลแล้ว)`
-          : `บันทึกข้อมูลของ ${targetApp.fullName}${finalRank ? ` (มติอันดับ #${finalRank})` : ''} เรียบร้อยแล้ว`
+          ? `อนุมัติทุน ฿${(resolvedAmount || 10000).toLocaleString()}${finalRank ? ` (อันดับที่ ${finalRank})` : ''} แก่ ${targetApp.fullName} เรียบร้อยแล้ว (เชื่อมต่อหน้าประกาศผลแล้ว)`
+          : `บันทึกข้อมูลของ ${targetApp.fullName}${finalRank ? ` (อันดับที่ ${finalRank})` : ''} เรียบร้อยแล้ว`
       );
     } catch (err) {
       console.warn('Could not save inline allocation:', err);
@@ -2079,6 +2110,26 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleBatchSyncToCloud}
+                disabled={isSyncingToCloud}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#34C759] hover:bg-[#28A745] text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                title="ซิงก์ข้อมูลใบสมัคร อันดับ และกำหนดการทั้งหมดขึ้น Cloud Firestore ทันที เพื่อให้ทุกเครื่องแสดงผลตรงกัน"
+              >
+                {isSyncingToCloud ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>กำลังซิงก์ขึ้นคลาวด์...</span>
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="w-3.5 h-3.5" />
+                    <span>ซิงก์ข้อมูลขึ้นคลาวด์</span>
+                  </>
+                )}
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIsBatchAwardModalOpen(true)}
