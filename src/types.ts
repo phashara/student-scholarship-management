@@ -6,6 +6,7 @@ export interface ScholarshipApplication {
   academicYear: string; // "2569"
   status: 'submitted' | 'eligible_for_interview' | 'interviewed' | 'awarded' | 'not_selected';
   awardedAmount?: number;
+  finalRank?: number;
   reviewerNotes?: string;
 
   // Module 0 : การยืนยันข้อมูล

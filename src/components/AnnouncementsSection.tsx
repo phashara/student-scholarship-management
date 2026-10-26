@@ -155,6 +155,15 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
 
     return Array.from(seen.values())
       .sort((a, b) => {
+        const rankA = a.app.finalRank;
+        const rankB = b.app.finalRank;
+        if (typeof rankA === 'number' && typeof rankB === 'number') {
+          if (rankA !== rankB) return rankA - rankB;
+        } else if (typeof rankA === 'number') {
+          return -1;
+        } else if (typeof rankB === 'number') {
+          return 1;
+        }
         if (b.score !== a.score) return b.score - a.score;
         const sidA = a.app.studentId != null ? String(a.app.studentId) : '';
         const sidB = b.app.studentId != null ? String(b.app.studentId) : '';

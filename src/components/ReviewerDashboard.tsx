@@ -11,11 +11,13 @@ import {
   BarChart3,
   Building,
   Calendar,
+  Check,
   CheckCircle2,
   Clock,
   Coins,
   ClipboardList,
   Download,
+  ExternalLink,
   Eye,
   FileSpreadsheet,
   FileText,
@@ -24,15 +26,21 @@ import {
   Heart,
   HelpCircle,
   Layers,
+  Megaphone,
   Pencil,
   RotateCcw,
+  Save,
   Scale,
   Search,
+  Send,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Trash2,
+  TrendingUp,
   User,
   Users,
+  Zap,
 } from 'lucide-react';
 import {
   OFFICIAL_DEPARTMENTS_2569,
@@ -64,7 +72,282 @@ interface ReviewerDashboardProps {
   onUpdateTimelineConfig?: (newConfig: TimelineConfig) => void;
   onDeleteApplication?: (appId: string, studentId?: string) => Promise<void> | void;
   onClearAllApplications?: () => Promise<void> | void;
+  onNavigateToAnnouncements?: () => void;
 }
+
+interface AllocationRowProps {
+  rank: number;
+  app: ScholarshipApplication;
+  score: ScoreBreakdown;
+  isSaving: boolean;
+  isSavedSuccess: boolean;
+  onSave: (
+    app: ScholarshipApplication,
+    status: ScholarshipApplication['status'],
+    amount?: number,
+    notes?: string,
+    finalRank?: number
+  ) => Promise<void>;
+  onViewItemizedScore: () => void;
+  onViewFullApplication: () => void;
+}
+
+const AllocationRow: React.FC<AllocationRowProps> = ({
+  rank,
+  app,
+  score,
+  isSaving,
+  isSavedSuccess,
+  onSave,
+  onViewItemizedScore,
+  onViewFullApplication,
+}) => {
+  const [currentStatus, setCurrentStatus] = useState<ScholarshipApplication['status']>(app.status);
+  const [amountStr, setAmountStr] = useState<string>(String(app.awardedAmount || 10000));
+  const [notesStr, setNotesStr] = useState<string>(app.reviewerNotes || '');
+  const [rankInput, setRankInput] = useState<string>(app.finalRank !== undefined ? String(app.finalRank) : '');
+
+  useEffect(() => {
+    setCurrentStatus(app.status);
+    setAmountStr(String(app.awardedAmount || 10000));
+    setNotesStr(app.reviewerNotes || '');
+    setRankInput(app.finalRank !== undefined ? String(app.finalRank) : '');
+  }, [app]);
+
+  const handleApplyPresetAmount = (val: number) => {
+    setAmountStr(String(val));
+    if (currentStatus === 'awarded') {
+      const finalRankVal = rankInput.trim() ? parseInt(rankInput) : undefined;
+      onSave(app, 'awarded', val, notesStr, finalRankVal);
+    }
+  };
+
+  const handleSaveRow = () => {
+    const num = parseFloat(amountStr) || 10000;
+    const finalRankVal = rankInput.trim() ? parseInt(rankInput) : undefined;
+    onSave(app, currentStatus, num, notesStr, finalRankVal);
+  };
+
+  const handleQuickStatusClick = (st: ScholarshipApplication['status']) => {
+    setCurrentStatus(st);
+    const num = parseFloat(amountStr) || 10000;
+    const finalRankVal = rankInput.trim() ? parseInt(rankInput) : undefined;
+    onSave(app, st, num, notesStr, finalRankVal);
+  };
+
+  return (
+    <tr className={`transition-colors ${currentStatus === 'awarded' ? 'bg-[#34C759]/[0.03]' : 'hover:bg-[#F2F2F7]/40'}`}>
+      {/* Rank (อันดับมติกรรมการหลังสัมภาษณ์ vs อันดับคะแนนเดิม) */}
+      <td className="px-4 py-3.5 text-center">
+        <div className="flex flex-col items-center gap-1">
+          <input
+            type="number"
+            min="1"
+            value={rankInput}
+            onChange={(e) => setRankInput(e.target.value)}
+            placeholder={String(rank)}
+            title="พิมพ์อันดับมติคณะกรรมการที่นี่ (เช่น 1, 2, 3...)"
+            className={`w-12 px-1.5 py-1 text-center font-mono font-bold text-xs rounded-[10px] border outline-none transition-all ${
+              rankInput
+                ? 'bg-[#FF9500] text-white border-[#E08500] shadow-xs'
+                : 'bg-[#F2F2F7] text-[#1C1C1E] border-black/10 focus:bg-white'
+            }`}
+          />
+          {app.finalRank ? (
+            <span className="text-[9px] font-bold text-[#b06000] bg-[#FF9500]/15 px-1.5 py-0.2 rounded-full">
+              มติ #{app.finalRank}
+            </span>
+          ) : (
+            <span className="text-[9px] text-[#8E8E93]" title="อันดับตามคะแนนความจำเป็นก่อนสัมภาษณ์">
+              เดิม #{rank}
+            </span>
+          )}
+        </div>
+      </td>
+
+      {/* Student Details */}
+      <td className="px-4 py-3.5">
+        <div className="flex items-center gap-2.5">
+          {app.studentPhotoDoc?.dataUrl ? (
+            <img
+              src={app.studentPhotoDoc.dataUrl}
+              alt={app.fullName}
+              className="w-9 h-11 rounded-[6px] object-cover border border-black/[0.08] shrink-0"
+            />
+          ) : (
+            <div className="w-9 h-11 rounded-[6px] bg-[#F2F2F7] flex items-center justify-center text-[#8E8E93] shrink-0">
+              <User className="w-4 h-4" />
+            </div>
+          )}
+          <div>
+            <div className="font-mono font-bold text-[#007AFF] text-[11px]">
+              {app.studentId || '-'}
+            </div>
+            <div className="font-semibold text-[#1C1C1E] text-xs sm:text-sm">
+              {app.fullName}
+            </div>
+            <div className="text-[11px] text-[#8E8E93]">
+              {app.department} • {app.studyYear || '-'}
+            </div>
+          </div>
+        </div>
+      </td>
+
+      {/* Score */}
+      <td className="px-4 py-3.5 text-center">
+        <div className="font-mono font-extrabold text-base text-[#1C1C1E]">
+          {score.totalScore}
+        </div>
+        <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border mt-0.5 ${score.colorClass}`}>
+          {score.priorityLabel}
+        </span>
+        <button
+          type="button"
+          onClick={onViewItemizedScore}
+          className="block mx-auto text-[10px] text-[#007AFF] hover:underline mt-1 cursor-pointer"
+        >
+          ใบคะแนน
+        </button>
+      </td>
+
+      {/* Decision Status */}
+      <td className="px-4 py-3.5">
+        <div className="space-y-1.5">
+          <select
+            value={currentStatus}
+            onChange={(e) => handleQuickStatusClick(e.target.value as any)}
+            className={`w-full px-2.5 py-1.5 rounded-[12px] font-bold text-xs outline-none border cursor-pointer ${
+              currentStatus === 'awarded'
+                ? 'bg-[#34C759]/15 text-[#248A3D] border-[#34C759]/30'
+                : currentStatus === 'interviewed'
+                ? 'bg-[#007AFF]/12 text-[#007AFF] border-[#007AFF]/25'
+                : currentStatus === 'eligible_for_interview'
+                ? 'bg-[#FF9500]/15 text-[#b06000] border-[#FF9500]/25'
+                : 'bg-[#F2F2F7] text-[#636366] border-black/5'
+            }`}
+          >
+            <option value="awarded">🟢 อนุมัติจัดสรรทุน (ได้รับทุน)</option>
+            <option value="interviewed">🔵 สัมภาษณ์แล้ว (รอผล/สำรอง)</option>
+            <option value="eligible_for_interview">🟡 มีสิทธิ์สัมภาษณ์ (รอข้อสรุป)</option>
+            <option value="not_selected">⚪ ไม่ผ่านการคัดเลือก</option>
+            <option value="submitted">⏳ ยื่นใบสมัครแล้ว</option>
+          </select>
+
+          {currentStatus === 'awarded' && (
+            <div className="text-[10px] text-[#248A3D] font-semibold flex items-center gap-1">
+              <Check className="w-3 h-3 text-[#34C759]" />
+              <span>เชื่อมโยงสู่หน้าประกาศผลแล้ว</span>
+            </div>
+          )}
+        </div>
+      </td>
+
+      {/* Grant Amount */}
+      <td className="px-4 py-3.5">
+        <div className="space-y-1">
+          <div className="relative">
+            <span className="absolute left-2.5 top-1.5 text-xs text-[#8E8E93] font-bold">฿</span>
+            <input
+              type="number"
+              disabled={currentStatus !== 'awarded'}
+              value={amountStr}
+              onChange={(e) => setAmountStr(e.target.value)}
+              placeholder="10000"
+              className={`w-full pl-6 pr-2.5 py-1 text-xs font-mono font-bold rounded-[10px] border outline-none ${
+                currentStatus === 'awarded'
+                  ? 'bg-white text-[#1C1C1E] border-black/10 focus:ring-2 focus:ring-[#34C759]/25'
+                  : 'bg-[#F2F2F7] text-[#8E8E93] border-transparent cursor-not-allowed'
+              }`}
+            />
+          </div>
+
+          {currentStatus === 'awarded' && (
+            <div className="flex items-center gap-1 text-[10px]">
+              <button
+                type="button"
+                onClick={() => handleApplyPresetAmount(5000)}
+                className={`px-1.5 py-0.5 rounded cursor-pointer ${
+                  amountStr === '5000' ? 'bg-[#34C759] text-white font-bold' : 'bg-[#F2F2F7] text-[#636366] hover:bg-[#E5E5EA]'
+                }`}
+              >
+                5 พัน
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPresetAmount(10000)}
+                className={`px-1.5 py-0.5 rounded cursor-pointer ${
+                  amountStr === '10000' ? 'bg-[#34C759] text-white font-bold' : 'bg-[#F2F2F7] text-[#636366] hover:bg-[#E5E5EA]'
+                }`}
+              >
+                1 หมื่น
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPresetAmount(15000)}
+                className={`px-1.5 py-0.5 rounded cursor-pointer ${
+                  amountStr === '15000' ? 'bg-[#34C759] text-white font-bold' : 'bg-[#F2F2F7] text-[#636366] hover:bg-[#E5E5EA]'
+                }`}
+              >
+                1.5 หมื่น
+              </button>
+            </div>
+          )}
+        </div>
+      </td>
+
+      {/* Reviewer Notes */}
+      <td className="px-4 py-3.5">
+        <input
+          type="text"
+          value={notesStr}
+          onChange={(e) => setNotesStr(e.target.value)}
+          placeholder="เช่น สำรองอันดับ 1, ทุนเร่งด่วน..."
+          className="w-full px-2.5 py-1 text-xs rounded-[10px] bg-[#F2F2F7] border border-transparent focus:bg-white focus:border-black/10 outline-none"
+        />
+      </td>
+
+      {/* Actions */}
+      <td className="px-4 py-3.5 text-right">
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={handleSaveRow}
+            disabled={isSaving}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-xs ${
+              isSavedSuccess
+                ? 'bg-[#34C759] text-white'
+                : 'bg-[#1C1C1E] hover:bg-black text-white'
+            }`}
+            title="บันทึกการจัดสรรทุน"
+          >
+            {isSaving ? (
+              <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+            ) : isSavedSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>บันทึกแล้ว</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5" />
+                <span>บันทึก</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={onViewFullApplication}
+            className="p-1.5 text-[#8E8E93] hover:text-[#007AFF] hover:bg-[#007AFF]/10 rounded-full transition-colors cursor-pointer"
+            title="ดูใบสมัครฉบับเต็ม"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   applications,
@@ -75,8 +358,9 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   onUpdateTimelineConfig,
   onDeleteApplication,
   onClearAllApplications,
+  onNavigateToAnnouncements,
 }) => {
-  const [activeView, setActiveView] = useState<'table' | 'itemized' | 'scoring'>('table');
+  const [activeView, setActiveView] = useState<'table' | 'itemized' | 'scoring' | 'allocation'>('allocation');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('all');
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -90,6 +374,27 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   const [newStatus, setNewStatus] = useState<ScholarshipApplication['status']>('submitted');
   const [newAwardedAmount, setNewAwardedAmount] = useState<string>('10000');
   const [reviewerNotes, setReviewerNotes] = useState<string>('');
+
+  // Allocation Mode States (มาตรฐานสากล: การจัดสรรทุน & คุมงบประมาณ)
+  const [budgetPool, setBudgetPool] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('nu_socsci_grant_budget_pool');
+      return stored ? Number(stored) : 150000;
+    } catch {
+      return 150000;
+    }
+  });
+  const [isEditingBudgetPool, setIsEditingBudgetPool] = useState<boolean>(false);
+  const [tempBudgetPool, setTempBudgetPool] = useState<string>('150000');
+  const [allocationScopeFilter, setAllocationScopeFilter] = useState<'interview_all' | 'awarded_only' | 'pending_only' | 'all'>('interview_all');
+  const [savingAppId, setSavingAppId] = useState<string | null>(null);
+  const [savedSuccessId, setSavedSuccessId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Batch Award Modal state
+  const [isBatchAwardModalOpen, setIsBatchAwardModalOpen] = useState<boolean>(false);
+  const [batchTopCount, setBatchTopCount] = useState<number>(10);
+  const [batchAmountPerPerson, setBatchAmountPerPerson] = useState<number>(10000);
 
   // Admin full edit modal (แก้ไขข้อมูลในฐานข้อมูล)
   const [editApplicantTarget, setEditApplicantTarget] = useState<ScholarshipApplication | null>(null);
@@ -405,6 +710,217 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   const criticalCount = scopedAppsWithScores.filter((x) => x.score.priorityLevel === 'critical').length;
   const highCount = scopedAppsWithScores.filter((x) => x.score.priorityLevel === 'high').length;
   const awardedCount = scopedAppsWithScores.filter((x) => x.app.status === 'awarded').length;
+  const totalAwardedRecipientsCount = awardedCount;
+
+  // Allocation View Computations & Handlers (มาตรฐานสากล)
+  const totalAwardedAllocatedBudget = useMemo(() => {
+    return scopedAppsWithScores
+      .filter((x) => x.app.status === 'awarded')
+      .reduce((sum, x) => sum + (Number(x.app.awardedAmount) || 10000), 0);
+  }, [scopedAppsWithScores]);
+
+  const totalInterviewEligibleCount = useMemo(() => {
+    return scopedAppsWithScores.filter(
+      (x) => x.app.status === 'eligible_for_interview' || x.app.status === 'interviewed' || x.app.status === 'awarded'
+    ).length;
+  }, [scopedAppsWithScores]);
+
+  const budgetRemaining = budgetPool - totalAwardedAllocatedBudget;
+  const budgetUtilizationPercent = Math.min(100, Math.round((totalAwardedAllocatedBudget / (budgetPool || 1)) * 100));
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleSaveBudgetPool = () => {
+    const val = parseFloat(tempBudgetPool) || 0;
+    setBudgetPool(val);
+    try {
+      localStorage.setItem('nu_socsci_grant_budget_pool', String(val));
+    } catch {}
+    setIsEditingBudgetPool(false);
+    showToast(`บันทึกเพดานงบประมาณทุน ฿${val.toLocaleString()} เรียบร้อยแล้ว`);
+  };
+
+  const sortedCandidatesForAllocation = useMemo(() => {
+    return appsWithScores
+      .filter(({ app, score }) => {
+        if (selectedAcademicYear !== 'all' && (app.academicYear || '2569') !== selectedAcademicYear) return false;
+        if (selectedDept !== 'all' && app.department !== selectedDept) return false;
+        if (selectedYear !== 'all' && app.studyYear !== selectedYear) return false;
+
+        // Allocation scope filter
+        if (allocationScopeFilter === 'interview_all') {
+          return app.status === 'eligible_for_interview' || app.status === 'interviewed' || app.status === 'awarded';
+        }
+        if (allocationScopeFilter === 'awarded_only') {
+          return app.status === 'awarded';
+        }
+        if (allocationScopeFilter === 'pending_only') {
+          return app.status === 'eligible_for_interview' || app.status === 'interviewed';
+        }
+        return true;
+      })
+      .filter(({ app }) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          (app.studentId || '').toLowerCase().includes(q) ||
+          (app.fullName || '').toLowerCase().includes(q) ||
+          (app.department || '').toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        // Priority 1: Committee Final Rank (หลังสัมภาษณ์)
+        const rankA = a.app.finalRank;
+        const rankB = b.app.finalRank;
+        if (typeof rankA === 'number' && typeof rankB === 'number') {
+          if (rankA !== rankB) return rankA - rankB;
+        } else if (typeof rankA === 'number') {
+          return -1;
+        } else if (typeof rankB === 'number') {
+          return 1;
+        }
+        // Priority 2: Document Score descending (คะแนนความจำเป็นเดิม)
+        if (b.score.totalScore !== a.score.totalScore) {
+          return b.score.totalScore - a.score.totalScore;
+        }
+        return (a.app.studentId || '').localeCompare(b.app.studentId || '');
+      });
+  }, [appsWithScores, selectedAcademicYear, selectedDept, selectedYear, allocationScopeFilter, searchQuery]);
+
+  const handleQuickInlineAllocation = async (
+    targetApp: ScholarshipApplication,
+    status: ScholarshipApplication['status'],
+    amount?: number,
+    notes?: string,
+    finalRank?: number
+  ) => {
+    setSavingAppId(targetApp.id);
+    const resolvedAmount = status === 'awarded' ? (amount !== undefined ? amount : (targetApp.awardedAmount || 10000)) : undefined;
+    const updated: ScholarshipApplication = {
+      ...targetApp,
+      status,
+      awardedAmount: resolvedAmount,
+      reviewerNotes: notes !== undefined ? notes : targetApp.reviewerNotes,
+      finalRank: finalRank !== undefined ? finalRank : targetApp.finalRank,
+      updatedAt: new Date().toLocaleString('th-TH'),
+    };
+    try {
+      await saveApplicationOnline(updated);
+      setSavedSuccessId(targetApp.id);
+      setTimeout(() => setSavedSuccessId(null), 2500);
+      showToast(
+        status === 'awarded'
+          ? `อนุมัติทุน ฿${(resolvedAmount || 10000).toLocaleString()}${finalRank ? ` (มติอันดับ #${finalRank})` : ''} แก่ ${targetApp.fullName} เรียบร้อยแล้ว (เชื่อมต่อหน้าประกาศผลแล้ว)`
+          : `บันทึกข้อมูลของ ${targetApp.fullName}${finalRank ? ` (มติอันดับ #${finalRank})` : ''} เรียบร้อยแล้ว`
+      );
+    } catch (err) {
+      console.warn('Could not save inline allocation:', err);
+    } finally {
+      setSavingAppId(null);
+      onRefresh();
+    }
+  };
+
+  const handleBatchAwardTop = async () => {
+    setIsBatchAwardModalOpen(false);
+    const candidatesToAward = sortedCandidatesForAllocation
+      .map((x) => x.app)
+      .slice(0, batchTopCount);
+
+    if (candidatesToAward.length === 0) return;
+
+    showToast(`กำลังบันทึกอนุมัติทุน Top ${candidatesToAward.length} คน คนละ ฿${batchAmountPerPerson.toLocaleString()}...`);
+
+    for (const cand of candidatesToAward) {
+      const updated: ScholarshipApplication = {
+        ...cand,
+        status: 'awarded',
+        awardedAmount: batchAmountPerPerson,
+        updatedAt: new Date().toLocaleString('th-TH'),
+      };
+      try {
+        await saveApplicationOnline(updated);
+      } catch (err) {
+        console.warn('Batch save error:', err);
+      }
+    }
+    onRefresh();
+    showToast(`อนุมัติทุน Top ${candidatesToAward.length} คนเรียบร้อยแล้ว! ข้อมูลเชื่อมโยงไปหน้าประกาศผลแล้ว`);
+  };
+
+  const handlePublishOfficialAnnouncement = () => {
+    const confirmMsg =
+      'ยืนยันเผยแพร่ผลการคัดเลือกทุนอย่างเป็นทางการ?\n\n' +
+      'เมื่อยืนยันแล้ว:\n' +
+      '1. สถานะระบบจะเปลี่ยนเป็น "ประกาศผลการคัดเลือกเสร็จสิ้น" (awarded)\n' +
+      '2. นิสิตและบุคคลภายนอกจะเข้าดูรายชื่อผู้ได้รับทุนและยอดเงินทุนได้ทันทีที่หน้าประกาศผล';
+    if (window.confirm(confirmMsg)) {
+      const updatedCfg: TimelineConfig = {
+        ...currentTimelineConfig,
+        systemPhase: 'awarded',
+        lastUpdatedAt: new Date().toLocaleString('th-TH'),
+        lastUpdatedBy: 'คณะกรรมการพิจารณาทุน คณะสังคมศาสตร์',
+      };
+      handleUpdateTimelineConfigInternal(updatedCfg);
+      showToast('🚀 เผยแพร่ผลการคัดเลือกทุนสู่หน้าประกาศผลทางการเรียบร้อยแล้ว!');
+    }
+  };
+
+  const handleExportAllocationCSV = () => {
+    const headers = [
+      'อันดับตามคะแนน',
+      'รหัสนิสิต',
+      'ชื่อ-นามสกุล',
+      'ภาควิชา',
+      'ชั้นปี',
+      'ผลการเรียนเฉลี่ย (GPAX)',
+      'คะแนนความจำเป็น (เต็ม 100)',
+      'ระดับความจำเป็น',
+      'สถานะผลการพิจารณา',
+      'วงเงินทุนที่ได้รับอนุมัติ (บาท)',
+      'หมายเหตุ/เงื่อนไขคณะกรรมการ',
+      'เบอร์โทรศัพท์',
+    ];
+
+    const rows = sortedCandidatesForAllocation.map((item, idx) => [
+      `"${idx + 1}"`,
+      `"${item.app.studentId || ''}"`,
+      `"${item.app.fullName || ''}"`,
+      `"${item.app.department || ''}"`,
+      `"${item.app.studyYear || ''}"`,
+      `"${item.app.gpaxRange || item.app.gpax || ''}"`,
+      `"${item.score.totalScore}"`,
+      `"${item.score.priorityLabel}"`,
+      `"${
+        item.app.status === 'awarded'
+          ? 'อนุมัติจัดสรรทุน (ได้รับทุน)'
+          : item.app.status === 'interviewed'
+          ? 'ผ่านสัมภาษณ์/รอผล'
+          : item.app.status === 'eligible_for_interview'
+          ? 'มีสิทธิ์สัมภาษณ์'
+          : item.app.status === 'not_selected'
+          ? 'ไม่อยู่ในกลุ่มคัดเลือก'
+          : item.app.status
+      }"`,
+      `"${item.app.status === 'awarded' ? (item.app.awardedAmount || 10000) : 0}"`,
+      `"${(item.app.reviewerNotes || '').replace(/"/g, '""')}"`,
+      `"${item.app.phone || ''}"`,
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const yrStr = selectedAcademicYear === 'all' ? (currentTimelineConfig?.academicYear || '2569') : selectedAcademicYear;
+    link.setAttribute('download', `มติการจัดสรรทุนการศึกษา_คณะสังคมศาสตร์_${yrStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="space-y-6">
@@ -521,9 +1037,21 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
           </div>
         </div>
 
-        {/* View Switcher: Database Table vs Itemized Score Matrix vs Scoring Ranking */}
+        {/* View Switcher: Database Table vs Allocation vs Itemized Score Matrix vs Scoring Ranking */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-black/[0.05]">
           <div className="bg-[#F2F2F7] p-1 rounded-[16px] flex flex-wrap items-center gap-1">
+            <button
+              onClick={() => setActiveView('allocation')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
+                activeView === 'allocation' ? 'bg-[#34C759] text-white shadow-xs' : 'text-[#8E8E93] hover:text-[#248A3D]'
+              }`}
+            >
+              <Award className="w-3.5 h-3.5" />
+              <span>จัดสรรทุน & สรุปผลสัมภาษณ์</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${activeView === 'allocation' ? 'bg-white/20 text-white' : 'bg-[#34C759]/15 text-[#248A3D]'}`}>
+                สากล
+              </span>
+            </button>
             <button
               onClick={() => setActiveView('table')}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
@@ -1286,6 +1814,427 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-20 right-5 z-50 bg-[#1C1C1E] text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-2.5 animate-bounce">
+          <CheckCircle2 className="w-5 h-5 text-[#34C759] shrink-0" />
+          <span className="text-xs sm:text-sm font-semibold">{toastMessage}</span>
+        </div>
+      )}
+
+      {/* ================================================================ */}
+      {/* VIEW 4: ระบบจัดสรรทุนการศึกษา & สรุปผลสัมภาษณ์ (Standard Grant Award Allocation) */}
+      {/* ================================================================ */}
+      {activeView === 'allocation' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Executive Header Banner */}
+          <div className="bg-gradient-to-br from-white via-white to-[#34C759]/[0.04] rounded-[26px] p-6 sm:p-7 shadow-xs border border-[#34C759]/20 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="p-1 rounded-[8px] bg-[#34C759]/15 text-[#248A3D]">
+                    <Award className="w-4 h-4" />
+                  </span>
+                  <span className="text-xs font-bold text-[#248A3D] uppercase tracking-wider">
+                    มาตรฐานสากล • แดชบอร์ดสรุปผลและจัดสรรทุนการศึกษา
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-extrabold text-[#1C1C1E] font-['Prompt',sans-serif] tracking-tight">
+                  ระบบจัดสรรทุน & สรุปผลสัมภาษณ์ (Grant Award Allocation)
+                </h3>
+                <p className="text-xs sm:text-sm text-[#636366] mt-1 leading-relaxed">
+                  พิจารณาเคาะมติสัมภาษณ์รายบุคคล กำหนดวงเงินทุน ควบคุมเพดานงบประมาณแบบเรียลไทม์ และเชื่อมโยงข้อมูลสู่หน้าประกาศผลอย่างเป็นทางการ
+                </p>
+              </div>
+
+              {/* Action Buttons: Publish, Preview, Export */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePublishOfficialAnnouncement}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-[#34C759] to-[#248A3D] hover:from-[#2db24f] hover:to-[#1e7e34] text-white text-xs font-bold transition-all active:scale-95 shadow-sm cursor-pointer"
+                  title="เผยแพร่ผลการคัดเลือกสู่หน้าประกาศผลเพื่อให้นิสิตเข้าดูได้"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>เผยแพร่ผลสู่หน้าประกาศ</span>
+                </button>
+
+                {onNavigateToAnnouncements && (
+                  <button
+                    type="button"
+                    onClick={onNavigateToAnnouncements}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#007AFF]/12 hover:bg-[#007AFF]/20 text-[#007AFF] text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                    title="เปิดดูหน้าประกาศผลแบบที่นิสิตและบุคคลภายนอกมองเห็น"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>ดูหน้าประกาศผลนิสิต</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleExportAllocationCSV}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                  title="ส่งออกมติการจัดสรรทุนเป็นไฟล์ Excel/CSV สำหรับแนบรายงานการประชุม"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-[#34C759]" />
+                  <span>ส่งออกมติ (CSV)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Official Announcement Status Callout */}
+            <div className={`p-4 rounded-[18px] border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+              currentTimelineConfig.systemPhase === 'awarded'
+                ? 'bg-[#34C759]/10 border-[#34C759]/25 text-[#1e7e34]'
+                : 'bg-[#FF9500]/10 border-[#FF9500]/25 text-[#b06000]'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <span className="p-1 rounded-full bg-white shadow-xs">
+                  {currentTimelineConfig.systemPhase === 'awarded' ? (
+                    <CheckCircle2 className="w-4 h-4 text-[#34C759]" />
+                  ) : (
+                    <Clock className="w-4 h-4 text-[#FF9500]" />
+                  )}
+                </span>
+                <div>
+                  <strong className="block text-[13px]">
+                    {currentTimelineConfig.systemPhase === 'awarded'
+                      ? 'สถานะระบบ: ประกาศผลการคัดเลือกอย่างเป็นทางการแล้ว (Public Phase)'
+                      : 'สถานะระบบ: ขั้นตอนการสัมภาษณ์ & เตรียมจัดสรรทุน (Internal Evaluation)'}
+                  </strong>
+                  <span className="opacity-90">
+                    {currentTimelineConfig.systemPhase === 'awarded'
+                      ? 'นิสิตและบุคคลทั่วไปสามารถดูรายชื่อผู้ได้รับทุนและยอดเงินได้แล้วที่แท็บ "ประกาศผล"'
+                      : 'ข้อมูลการจัดสรรทุนนี้ยังอยู่ระหว่างการประชุมลับของคณะกรรมการ เมื่อพร้อมให้กดปุ่ม "เผยแพร่ผลสู่หน้าประกาศ" ด้านบน'}
+                  </span>
+                </div>
+              </div>
+
+              {currentTimelineConfig.systemPhase !== 'awarded' && (
+                <button
+                  type="button"
+                  onClick={handlePublishOfficialAnnouncement}
+                  className="px-3.5 py-1.5 rounded-full bg-[#FF9500] hover:bg-[#e08500] text-white font-bold text-xs shadow-xs transition-all active:scale-95 shrink-0 self-start sm:self-auto cursor-pointer"
+                >
+                  เปิดประกาศผลทันที
+                </button>
+              )}
+            </div>
+
+            {/* Budget Governance Matrix (4 Cards) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+              {/* Card 1: Budget Pool */}
+              <div className="p-4 rounded-[20px] bg-white border border-black/[0.06] shadow-xs">
+                <div className="flex items-center justify-between text-[#8E8E93] text-xs">
+                  <span>เพดานงบประมาณทุน</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempBudgetPool(String(budgetPool));
+                      setIsEditingBudgetPool(!isEditingBudgetPool);
+                    }}
+                    className="text-[#007AFF] hover:underline flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    <span>แก้ไขวงเงิน</span>
+                  </button>
+                </div>
+                {isEditingBudgetPool ? (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      value={tempBudgetPool}
+                      onChange={(e) => setTempBudgetPool(e.target.value)}
+                      className="w-full px-2.5 py-1 text-sm font-mono font-bold rounded-lg bg-[#F2F2F7] border border-black/10 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveBudgetPool}
+                      className="px-2.5 py-1 text-xs font-bold bg-[#007AFF] text-white rounded-lg cursor-pointer"
+                    >
+                      บันทึก
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-2xl font-extrabold text-[#1C1C1E] font-mono mt-1">
+                    ฿{budgetPool.toLocaleString()}
+                  </div>
+                )}
+                <div className="text-[11px] text-[#8E8E93] mt-1">วงเงินที่คณะจัดสรรในรอบปี</div>
+              </div>
+
+              {/* Card 2: Allocated Budget */}
+              <div className="p-4 rounded-[20px] bg-[#34C759]/10 border border-[#34C759]/20 shadow-xs">
+                <div className="text-xs font-bold text-[#248A3D]">งบประมาณที่จัดสรรแล้ว</div>
+                <div className="text-2xl font-extrabold text-[#248A3D] font-mono mt-1">
+                  ฿{totalAwardedAllocatedBudget.toLocaleString()}
+                </div>
+                <div className="text-[11px] text-[#248A3D] font-medium mt-1">
+                  อนุมัติแล้ว {totalAwardedRecipientsCount} คน ({budgetUtilizationPercent}% ของงบ)
+                </div>
+              </div>
+
+              {/* Card 3: Remaining Balance */}
+              <div className={`p-4 rounded-[20px] border shadow-xs ${
+                budgetRemaining >= 0
+                  ? 'bg-white border-black/[0.06]'
+                  : 'bg-[#FF3B30]/10 border-[#FF3B30]/25'
+              }`}>
+                <div className="text-xs font-medium text-[#8E8E93]">
+                  {budgetRemaining >= 0 ? 'งบประมาณคงเหลือ' : 'จัดสรรเกินเพดานงบ'}
+                </div>
+                <div className={`text-2xl font-extrabold font-mono mt-1 ${
+                  budgetRemaining >= 0 ? 'text-[#007AFF]' : 'text-[#FF3B30]'
+                }`}>
+                  {budgetRemaining >= 0 ? `฿${budgetRemaining.toLocaleString()}` : `-฿${Math.abs(budgetRemaining).toLocaleString()}`}
+                </div>
+                <div className="text-[11px] text-[#8E8E93] mt-1">
+                  {budgetRemaining >= 0 ? 'งบประมาณเพียงพอต่อการจัดสรร' : 'กรุณาปรับลดจำนวนเงินหรือจำนวนผู้รับทุน'}
+                </div>
+              </div>
+
+              {/* Card 4: Progress */}
+              <div className="p-4 rounded-[20px] bg-white border border-black/[0.06] shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="text-xs font-medium text-[#8E8E93]">ความคืบหน้าการคัดเลือก</div>
+                  <div className="text-2xl font-extrabold text-[#1C1C1E] font-mono mt-1">
+                    {totalAwardedRecipientsCount} <span className="text-sm font-normal text-[#8E8E93]">/ {totalInterviewEligibleCount} คน</span>
+                  </div>
+                </div>
+                <div className="w-full bg-[#F2F2F7] h-2 rounded-full overflow-hidden mt-2">
+                  <div
+                    className="bg-[#34C759] h-full transition-all duration-500 rounded-full"
+                    style={{
+                      width: `${totalInterviewEligibleCount ? Math.min(100, (totalAwardedRecipientsCount / totalInterviewEligibleCount) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Allocation Toolbar: Filter Scope & Quick Batch Tools */}
+          <div className="bg-white rounded-[22px] p-4 shadow-xs border border-black/[0.06] flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-[#8E8E93] mr-1">แสดงกลุ่ม:</span>
+              <button
+                type="button"
+                onClick={() => setAllocationScopeFilter('interview_all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  allocationScopeFilter === 'interview_all'
+                    ? 'bg-[#007AFF] text-white shadow-xs'
+                    : 'bg-[#F2F2F7] text-[#636366] hover:text-[#1C1C1E]'
+                }`}
+              >
+                ผู้มีสิทธิ์/เข้าสัมภาษณ์ทั้งหมด ({totalInterviewEligibleCount})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAllocationScopeFilter('awarded_only')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  allocationScopeFilter === 'awarded_only'
+                    ? 'bg-[#34C759] text-white shadow-xs'
+                    : 'bg-[#F2F2F7] text-[#636366] hover:text-[#248A3D]'
+                }`}
+              >
+                เฉพาะผู้อนุมัติทุนแล้ว ({totalAwardedRecipientsCount})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAllocationScopeFilter('pending_only')}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  allocationScopeFilter === 'pending_only'
+                    ? 'bg-[#FF9500] text-white shadow-xs'
+                    : 'bg-[#F2F2F7] text-[#636366] hover:text-[#b06000]'
+                }`}
+              >
+                รอการตัดสินผล ({Math.max(0, totalInterviewEligibleCount - totalAwardedRecipientsCount)})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAllocationScopeFilter('all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  allocationScopeFilter === 'all'
+                    ? 'bg-[#1C1C1E] text-white shadow-xs'
+                    : 'bg-[#F2F2F7] text-[#8E8E93] hover:text-[#1C1C1E]'
+                }`}
+              >
+                ผู้สมัครทั้งหมด ({totalCount})
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsBatchAwardModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#FF9500] to-[#E08500] text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+                title="อนุมัติทุนแบบกลุ่มตามลำดับคะแนนความจำเป็น"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>อนุมัติด่วนตามคะแนน (Batch)</span>
+              </button>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[#8E8E93]" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อ / รหัส / ภาควิชา..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 rounded-full bg-[#F2F2F7] text-xs outline-none focus:bg-white focus:ring-2 focus:ring-[#007AFF]/30 border border-transparent w-44 sm:w-56"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Allocation Table (Matrix View) */}
+          <div className="bg-white rounded-[24px] shadow-xs border border-black/[0.06] overflow-hidden">
+            <div className="p-4 border-b border-black/[0.05] bg-[#F2F2F7]/40 flex items-center justify-between text-xs text-[#8E8E93]">
+              <span className="font-semibold text-[#1C1C1E]">
+                รายชื่อนิสิตเรียงตามคะแนนความจำเป็น (พิจารณาจากอันดับ 1 ลงมา)
+              </span>
+              <span>พบ {sortedCandidatesForAllocation.length} รายการ</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-black/[0.06] bg-[#F8F9FA] text-[#8E8E93] font-semibold">
+                    <th className="px-4 py-3 w-14 text-center">อันดับ</th>
+                    <th className="px-4 py-3 min-w-[200px]">ข้อมูลนิสิต</th>
+                    <th className="px-4 py-3 text-center min-w-[110px]">คะแนน (/100)</th>
+                    <th className="px-4 py-3 min-w-[210px]">มติสัมภาษณ์ / สถานะ</th>
+                    <th className="px-4 py-3 min-w-[190px]">วงเงินทุน (บาท)</th>
+                    <th className="px-4 py-3 min-w-[200px]">หมายเหตุ / เงื่อนไข</th>
+                    <th className="px-4 py-3 text-right min-w-[130px]">การดำเนินการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/[0.04]">
+                  {sortedCandidatesForAllocation.length > 0 ? (
+                    sortedCandidatesForAllocation.map((item, index) => (
+                      <AllocationRow
+                        key={item.app.id}
+                        rank={index + 1}
+                        app={item.app}
+                        score={item.score}
+                        isSaving={savingAppId === item.app.id}
+                        isSavedSuccess={savedSuccessId === item.app.id}
+                        onSave={handleQuickInlineAllocation}
+                        onViewItemizedScore={() => setSelectedItemizedApp(item.app)}
+                        onViewFullApplication={() => onViewApplication(item.app)}
+                      />
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center text-[#8E8E93]">
+                        ไม่พบรายชื่อในเงื่อนไขที่เลือก
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Award Modal Dialog */}
+      {isBatchAwardModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-[28px] shadow-2xl p-6 border border-black/[0.06] space-y-4">
+            <div className="flex items-center gap-2 text-[#FF9500]">
+              <Zap className="w-5 h-5" />
+              <h3 className="text-base font-bold text-[#1C1C1E] font-['Prompt',sans-serif]">
+                อนุมัติด่วนตามลำดับคะแนนความจำเป็น
+              </h3>
+            </div>
+            <p className="text-xs text-[#8E8E93] leading-relaxed">
+              ระบบจะจัดสรรทุนให้อัตโนมัติโดยเรียงจากผู้สมัครที่ได้คะแนนประเมินสูงสุดลงมาตามจำนวนที่กำหนด
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#1C1C1E] mb-1">
+                  จำนวนผู้รับทุน (Top N คน)
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[5, 10, 15, 20].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setBatchTopCount(num)}
+                      className={`py-2 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
+                        batchTopCount === num
+                          ? 'bg-[#FF9500] text-white shadow-xs'
+                          : 'bg-[#F2F2F7] text-[#636366]'
+                      }`}
+                    >
+                      Top {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#1C1C1E] mb-1">
+                  จำนวนเงินทุนต่อคน (บาท)
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[5000, 10000, 15000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setBatchAmountPerPerson(amt)}
+                      className={`py-2 rounded-[12px] text-xs font-bold transition-all cursor-pointer ${
+                        batchAmountPerPerson === amt
+                          ? 'bg-[#34C759] text-white shadow-xs'
+                          : 'bg-[#F2F2F7] text-[#636366]'
+                      }`}
+                    >
+                      ฿{amt.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-[14px] bg-[#F8F9FA] border border-black/5 text-xs space-y-1">
+                <div className="flex items-center justify-between text-[#8E8E93]">
+                  <span>งบประมาณที่จะใช้:</span>
+                  <strong className="font-mono text-[#1C1C1E] text-sm">
+                    ฿{(batchTopCount * batchAmountPerPerson).toLocaleString()}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between text-[#8E8E93]">
+                  <span>เพดานงบประมาณทุน:</span>
+                  <span className="font-mono">฿{budgetPool.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-black/[0.05]">
+              <button
+                type="button"
+                onClick={() => setIsBatchAwardModalOpen(false)}
+                className="px-4 py-2 rounded-full text-xs font-semibold text-[#8E8E93] hover:bg-[#767680]/10 transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleBatchAwardTop}
+                className="px-5 py-2 rounded-full text-xs font-bold bg-[#34C759] hover:bg-[#2db24f] text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+              >
+                ยืนยันอนุมัติ Top {batchTopCount} คน
+              </button>
+            </div>
           </div>
         </div>
       )}

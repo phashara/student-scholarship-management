@@ -243,6 +243,7 @@ export default function App() {
               onUpdateTimelineConfig={handleUpdateTimelineConfig}
               onDeleteApplication={handleDeleteApplication}
               onClearAllApplications={handleClearAllApplications}
+              onNavigateToAnnouncements={() => setActiveTab('announcements')}
             />
           ) : (
             <div className="bg-white rounded-[24px] p-8 max-w-md mx-auto text-center border border-black/[0.08] shadow-sm space-y-4 my-8">
