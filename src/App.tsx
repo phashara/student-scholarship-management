@@ -425,6 +425,8 @@ export default function App() {
                 • {timelineConfig.steps?.[1]?.title || 'ประกาศผู้มีสิทธิ์สัมภาษณ์'}: {timelineConfig.steps?.[1]?.dateStr || '18 กันยายน 2569'}
                 <br />
                 • {timelineConfig.steps?.[2]?.title || 'สัมภาษณ์ทุน'}: {timelineConfig.steps?.[2]?.dateStr || '15 ตุลาคม 2569'} {timelineConfig.steps?.[2]?.location ? `ณ ${timelineConfig.steps[2].location}` : ''}
+                <br />
+                • พิธีมอบทุนการศึกษา: {timelineConfig.steps?.[4]?.dateStr || 'วันศุกร์ที่ 6 พฤศจิกายน 2569 (เวลา 08.30 - 12.00 น.)'}
               </p>
               <p className="text-[10px] text-[#FF3B30] font-semibold">
                 * {timelineConfig.criticalNotice?.description || 'หากไม่เข้ารับการสัมภาษณ์ จะถือว่าสละสิทธิ์'}

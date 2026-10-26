@@ -772,14 +772,19 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
         );
       })
       .sort((a, b) => {
+        const parseRank = (val: any): number | null => {
+          if (val === undefined || val === null || val === '') return null;
+          const n = Number(val);
+          return isNaN(n) ? null : n;
+        };
         // Priority 1: Committee Final Rank (หลังสัมภาษณ์)
-        const rankA = a.app.finalRank;
-        const rankB = b.app.finalRank;
-        if (typeof rankA === 'number' && typeof rankB === 'number') {
+        const rankA = parseRank(a.app.finalRank);
+        const rankB = parseRank(b.app.finalRank);
+        if (rankA !== null && rankB !== null) {
           if (rankA !== rankB) return rankA - rankB;
-        } else if (typeof rankA === 'number') {
+        } else if (rankA !== null) {
           return -1;
-        } else if (typeof rankB === 'number') {
+        } else if (rankB !== null) {
           return 1;
         }
         // Priority 2: Document Score descending (คะแนนความจำเป็นเดิม)
@@ -871,7 +876,8 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
 
   const handleExportAllocationCSV = () => {
     const headers = [
-      'อันดับตามคะแนน',
+      'อันดับมติกรรมการ',
+      'อันดับเดิมตามคะแนน',
       'รหัสนิสิต',
       'ชื่อ-นามสกุล',
       'ภาควิชา',
@@ -886,6 +892,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
     ];
 
     const rows = sortedCandidatesForAllocation.map((item, idx) => [
+      `"${item.app.finalRank !== undefined && item.app.finalRank !== null && String(item.app.finalRank).trim() !== '' ? Number(item.app.finalRank) : (idx + 1)}"`,
       `"${idx + 1}"`,
       `"${item.app.studentId || ''}"`,
       `"${item.app.fullName || ''}"`,

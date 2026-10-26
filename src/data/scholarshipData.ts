@@ -576,10 +576,10 @@ export const TIMELINE_2569: AnnouncementItem[] = [
   },
   {
     id: 'step-5',
-    dateStr: '6 พฤศจิกายน 2569 (เวลา 08.30 - 11.30 น.)',
-    title: 'พิธีมอบทุนการศึกษา ในวันสถาปนาคณะสังคมศาสตร์',
-    subtitle: 'ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ นิสิตรับมอบทุนและส่งเอกสารเบิกจ่ายเงินเข้าบัญชี',
-    location: 'โถงชั้น 1 อาคารคณะสังคมศาสตร์',
+    dateStr: 'วันศุกร์ที่ 6 พฤศจิกายน 2569 (เวลา 08.30 - 12.00 น.)',
+    title: 'พิธีมอบทุนการศึกษา ในงานวันคล้ายวันสถาปนาคณะสังคมศาสตร์',
+    subtitle: 'ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ นิสิตรับมอบทุนและส่งเอกสารเบิกจ่ายเงินเข้าบัญชี (เอกสารที่ต้องเตรียม: สำเนาบัตรประชาชน 1 ฉบับ, สำเนาหน้าบัญชีธนาคาร 1 ฉบับ)',
+    location: 'โถงชั้น 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร',
     iconName: 'GraduationCap',
   },
 ];
@@ -622,6 +622,66 @@ export const DEFAULT_TIMELINE_CONFIG: TimelineConfig = {
 
 export const TIMELINE_STORAGE_KEY = 'nu_socsci_scholarship_timeline_config_2569';
 
+export function normalizeTimelineConfig(config?: TimelineConfig | null): TimelineConfig {
+  if (!config) return DEFAULT_TIMELINE_CONFIG;
+
+  const rawSteps = Array.isArray(config.steps) && config.steps.length > 0
+    ? config.steps
+    : DEFAULT_TIMELINE_CONFIG.steps;
+
+  const steps = rawSteps.map((st) => {
+    if (!st) return st;
+    if (st.id === 'step-3') {
+      let updatedDate = typeof st.dateStr === 'string' ? st.dateStr : '';
+      if (updatedDate.includes('23 กันยายน')) {
+        updatedDate = '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
+      }
+      let updatedLocation = typeof st.location === 'string' ? st.location : '';
+      if (updatedLocation.includes('ราชพฤกษ์ 3')) {
+        updatedLocation = 'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์';
+      }
+      let updatedSub = typeof st.subtitle === 'string' ? st.subtitle : '';
+      if (updatedSub.includes('ราชพฤกษ์ 3')) {
+        updatedSub = updatedSub.replace(/ราชพฤกษ์ 3/g, 'ราชพฤกษ์ 1');
+      }
+      return {
+        ...st,
+        dateStr: updatedDate,
+        location: updatedLocation,
+        subtitle: updatedSub,
+      };
+    }
+    if (st.id === 'step-5' || (typeof st.title === 'string' && (st.title.includes('สถาปนา') || st.title.includes('มอบทุน')))) {
+      return {
+        ...st,
+        dateStr: 'วันศุกร์ที่ 6 พฤศจิกายน 2569 (เวลา 08.30 - 12.00 น.)',
+        location: 'โถงชั้น 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร',
+        subtitle: 'ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ นิสิตรับมอบทุนและส่งเอกสารเบิกจ่ายเงินเข้าบัญชี (เอกสารที่ต้องเตรียม: สำเนาบัตรประชาชน 1 ฉบับ, สำเนาหน้าบัญชีธนาคาร 1 ฉบับ)',
+        title: 'พิธีมอบทุนการศึกษา ในงานวันคล้ายวันสถาปนาคณะสังคมศาสตร์',
+      };
+    }
+    return st;
+  });
+
+  const criticalNotice = {
+    ...DEFAULT_TIMELINE_CONFIG.criticalNotice,
+    ...(config.criticalNotice || {}),
+  };
+  if (criticalNotice.interviewDate?.includes('23 กันยายน')) {
+    criticalNotice.interviewDate = '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
+  }
+  if (criticalNotice.interviewLocation?.includes('ราชพฤกษ์ 3')) {
+    criticalNotice.interviewLocation = 'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร';
+  }
+
+  return {
+    ...DEFAULT_TIMELINE_CONFIG,
+    ...config,
+    steps,
+    criticalNotice,
+  };
+}
+
 export function loadTimelineConfig(): TimelineConfig {
   try {
     const raw = localStorage.getItem(TIMELINE_STORAGE_KEY);
@@ -630,61 +690,14 @@ export function loadTimelineConfig(): TimelineConfig {
       return DEFAULT_TIMELINE_CONFIG;
     }
     const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) {
-      localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(DEFAULT_TIMELINE_CONFIG));
-      return DEFAULT_TIMELINE_CONFIG;
-    }
-    const steps = (parsed.steps as AnnouncementItem[]).map((st) => {
-      if (!st) return st;
-      if (st.id === 'step-3') {
-        let updatedDate = typeof st.dateStr === 'string' ? st.dateStr : '';
-        if (updatedDate.includes('23 กันยายน')) {
-          updatedDate = '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
-        }
-        let updatedLocation = typeof st.location === 'string' ? st.location : '';
-        if (updatedLocation.includes('ราชพฤกษ์ 3')) {
-          updatedLocation = 'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์';
-        }
-        let updatedSub = typeof st.subtitle === 'string' ? st.subtitle : '';
-        if (updatedSub.includes('ราชพฤกษ์ 3')) {
-          updatedSub = updatedSub.replace(/ราชพฤกษ์ 3/g, 'ราชพฤกษ์ 1');
-        }
-        return {
-          ...st,
-          dateStr: updatedDate,
-          location: updatedLocation,
-          subtitle: updatedSub,
-        };
-      }
-      if (st.id === 'step-5' && typeof st.dateStr === 'string' && (st.dateStr.includes('ตุลาคม') || st.dateStr.includes('28 พฤศจิกายน'))) {
-        return { ...st, dateStr: '6 พฤศจิกายน 2569 (เวลา 08.30 - 11.30 น.)' };
-      }
-      return st;
-    });
+    const normalized = normalizeTimelineConfig(parsed);
 
-    const criticalNotice = {
-      ...DEFAULT_TIMELINE_CONFIG.criticalNotice,
-      ...(parsed.criticalNotice || {}),
-    };
-    if (criticalNotice.interviewDate?.includes('23 กันยายน')) {
-      criticalNotice.interviewDate = '15 ตุลาคม 2569 เวลา 17.00 น. เป็นต้นไป';
-    }
-    if (criticalNotice.interviewLocation?.includes('ราชพฤกษ์ 3')) {
-      criticalNotice.interviewLocation = 'ห้องประชุมราชพฤกษ์ 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร';
-    }
-
-    const mergedConfig: TimelineConfig = {
-      ...DEFAULT_TIMELINE_CONFIG,
-      ...parsed,
-      steps,
-      criticalNotice,
-    };
     // Persist migrated config
     try {
-      localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(mergedConfig));
+      localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(normalized));
     } catch {}
 
-    return mergedConfig;
+    return normalized;
   } catch (e) {
     console.error('Failed to load timeline config', e);
     return DEFAULT_TIMELINE_CONFIG;

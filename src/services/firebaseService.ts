@@ -23,6 +23,7 @@ import {
   saveApplication as saveLocalApplication,
   loadTimelineConfig as loadLocalTimelineConfig,
   saveTimelineConfig as saveLocalTimelineConfig,
+  normalizeTimelineConfig,
 } from '../data/scholarshipData';
 import {
   safeSetApplicationsLocalStorage,
@@ -320,7 +321,8 @@ export function subscribeTimelineConfig(
     (snapshot) => {
       if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
       if (snapshot.exists()) {
-        const data = snapshot.data() as TimelineConfig;
+        const rawData = snapshot.data() as TimelineConfig;
+        const data = normalizeTimelineConfig(rawData);
         saveLocalTimelineConfig(data);
         onUpdate(data);
       } else {
@@ -343,11 +345,12 @@ export function subscribeTimelineConfig(
  * Save timeline configuration to Firestore and LocalStorage
  */
 export async function saveTimelineConfigOnline(config: TimelineConfig): Promise<void> {
-  saveLocalTimelineConfig(config);
+  const normalized = normalizeTimelineConfig(config);
+  saveLocalTimelineConfig(normalized);
   try {
     const docRef = doc(db, TIMELINE_COLLECTION, TIMELINE_DOC_ID);
     const updated: TimelineConfig = {
-      ...config,
+      ...normalized,
       lastUpdatedAt: new Date().toLocaleString('th-TH'),
       lastUpdatedBy: config.lastUpdatedBy || 'ผู้ดูแลระบบ (Admin)',
     };

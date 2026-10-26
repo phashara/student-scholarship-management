@@ -105,9 +105,24 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
 
     const uniqueList = Array.from(seen.values());
 
-    // Sort by evaluation score descending (เรียงตามคะแนนความจำเป็นมากไปน้อย)
+    const parseRank = (val: any): number | null => {
+      if (val === undefined || val === null || val === '') return null;
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    };
+
+    // Sort by committee finalRank if assigned, otherwise by evaluation score descending
     return uniqueList
       .sort((a, b) => {
+        const rankA = parseRank(a.app.finalRank);
+        const rankB = parseRank(b.app.finalRank);
+        if (rankA !== null && rankB !== null) {
+          if (rankA !== rankB) return rankA - rankB;
+        } else if (rankA !== null) {
+          return -1;
+        } else if (rankB !== null) {
+          return 1;
+        }
         if (b.score !== a.score) {
           return b.score - a.score;
         }
@@ -153,15 +168,21 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
       }
     }
 
+    const parseRank = (val: any): number | null => {
+      if (val === undefined || val === null || val === '') return null;
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    };
+
     return Array.from(seen.values())
       .sort((a, b) => {
-        const rankA = a.app.finalRank;
-        const rankB = b.app.finalRank;
-        if (typeof rankA === 'number' && typeof rankB === 'number') {
+        const rankA = parseRank(a.app.finalRank);
+        const rankB = parseRank(b.app.finalRank);
+        if (rankA !== null && rankB !== null) {
           if (rankA !== rankB) return rankA - rankB;
-        } else if (typeof rankA === 'number') {
+        } else if (rankA !== null) {
           return -1;
-        } else if (typeof rankB === 'number') {
+        } else if (rankB !== null) {
           return 1;
         }
         if (b.score !== a.score) return b.score - a.score;
@@ -217,8 +238,8 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
   }, [interviewDateStr]);
 
   const awardDateStr =
-    timelineConfig?.steps?.find((s) => s.id === 'step-5' || s.title?.includes('พิธีมอบทุน'))?.dateStr ||
-    '6 พฤศจิกายน 2569 (เวลา 08.30 - 11.30 น.)';
+    timelineConfig?.steps?.find((s) => s.id === 'step-5' || s.title?.includes('พิธีมอบทุน') || s.title?.includes('สถาปนา'))?.dateStr ||
+    'วันศุกร์ที่ 6 พฤศจิกายน 2569 (เวลา 08.30 - 12.00 น.)';
 
   // Export announcement document as PDF via print preview
   const handleExportPdf = () => {
@@ -472,12 +493,16 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                   ขอแสดงความยินดีกับนิสิตผู้ได้รับอนุมัติทุนการศึกษา ประจำปีการศึกษา {selectedAcademicYear === 'all' ? (timelineConfig?.academicYear || '2569') : selectedAcademicYear}
                 </h3>
               </div>
-              <p className="text-xs text-[#1C1C1E] font-medium">
-                พิธีมอบทุนการศึกษา: ในงานวันสถาปนาคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร ({awardDateStr})
+              <p className="text-xs text-[#1C1C1E] font-medium leading-relaxed">
+                พิธีมอบทุนการศึกษา: ในงานวันคล้ายวันสถาปนาคณะสังคมศาสตร์ {awardDateStr}
+                <br />
+                📍 <strong>สถานที่:</strong> ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร
               </p>
-              <p className="text-[11px] text-[#248A3D]">
-                งานกิจการนิสิตและศิษย์เก่าสัมพันธ์จะประสานงานเรื่องการเปิดบัญชีและเอกสารลงนามสัญญารับทุนต่อไป
-              </p>
+              <div className="text-[11px] text-[#248A3D] space-y-0.5 mt-2 p-3 bg-white/80 rounded-xl border border-[#34C759]/20 shadow-2xs">
+                <div className="font-bold text-[#166534]">📝 เอกสารที่ต้องเตรียม:</div>
+                <div className="pl-1">▫️ สำเนาบัตรประชาชน 1 ฉบับ</div>
+                <div className="pl-1">▫️ สำเนาหน้าบัญชีธนาคาร 1 ฉบับ</div>
+              </div>
             </div>
 
             <div className="shrink-0 flex items-center gap-3">
@@ -589,14 +614,19 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
             <>
               <div>
                 <span className="text-[#8E8E93]">กำหนดการมอบทุน: </span>
-                <strong className="text-[#1C1C1E]">วันสถาปนาคณะสังคมศาสตร์ ({awardDateStr})</strong>
+                <strong className="text-[#1C1C1E]">วันสถาปนาคณะสังคมศาสตร์ {awardDateStr}</strong>
               </div>
               <div>
-                <span className="text-[#8E8E93]">จำนวนผู้ได้รับทุนทั้งหมด: </span>
-                <strong className="text-[#34C759]">{filteredList.length} คน</strong>
+                <span className="text-[#8E8E93]">สถานที่จัดพิธี: </span>
+                <strong className="text-[#1C1C1E]">ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร</strong>
               </div>
-              <div className="sm:col-span-2 text-[#248A3D] font-medium">
-                * ขอให้นิสิตผู้มีรายชื่อเตรียมความพร้อมในการเข้าร่วมพิธีมอบทุนและลงนามเอกสารตามที่งานกิจการนิสิตฯ นัดหมาย
+              <div className="sm:col-span-2 text-[#248A3D] font-medium space-y-1 pt-1 border-t border-black/[0.05]">
+                <div className="font-bold text-[#166534]">
+                  📝 เอกสารที่ต้องเตรียม: ▫️ สำเนาบัตรประชาชน 1 ฉบับ &nbsp;&bull;&nbsp; ▫️ สำเนาหน้าบัญชีธนาคาร 1 ฉบับ
+                </div>
+                <div className="text-[#636366] text-[11px] font-normal">
+                  * ขอให้นิสิตผู้มีรายชื่อเตรียมความพร้อมในการเข้าร่วมพิธีมอบทุนและลงนามเอกสารตามที่งานกิจการนิสิตฯ นัดหมาย
+                </div>
               </div>
             </>
           )}
@@ -640,7 +670,9 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                 filteredList.map((app, index) => (
                   <tr key={app.id || index} className="hover:bg-[#F8F9FA] transition-colors">
                     <td className="py-3 px-3.5 text-center font-mono font-bold text-[#8E8E93]">
-                      {index + 1}
+                      {app.finalRank !== undefined && app.finalRank !== null && String(app.finalRank).trim() !== ''
+                        ? Number(app.finalRank)
+                        : index + 1}
                     </td>
                     <td className="py-3 px-3.5 font-mono font-bold text-[#007AFF]">
                       {app.studentId || '-'}
@@ -684,7 +716,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                         </td>
                         <td className="py-3 px-4 text-center">
                           <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#34C759]/15 text-[#248A3D] border border-[#34C759]/30">
-                            28 พ.ย. (วันสถาปนาคณะ)
+                            ศุกร์ที่ 6 พ.ย. 2569 (08.30 - 12.00 น.)
                           </span>
                         </td>
                       </>

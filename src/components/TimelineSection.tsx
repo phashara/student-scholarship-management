@@ -311,6 +311,15 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                     <span>{item.location}</span>
                   </div>
                 )}
+                {(item.id === 'step-5' || item.title?.includes('มอบทุน') || item.title?.includes('สถาปนา')) && (
+                  <div className="mt-3 p-3 bg-[#E8F8EE] rounded-xl border border-[#34C759]/25 text-xs text-[#14532D] space-y-1">
+                    <div className="font-bold text-[#166534] flex items-center gap-1">
+                      <span>📝 เอกสารที่ต้องเตรียม</span>
+                    </div>
+                    <div className="pl-1 text-[11px] text-[#14532D]">▫️ สำเนาบัตรประชาชน 1 ฉบับ</div>
+                    <div className="pl-1 text-[11px] text-[#14532D]">▫️ สำเนาหน้าบัญชีธนาคาร 1 ฉบับ</div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

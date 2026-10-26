@@ -237,7 +237,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
 
               {/* Awarded Info */}
               {matchedApp.status === 'awarded' && (
-                <div className="p-5 rounded-[22px] bg-[#E8F8EE] border border-[#34C759]/30 text-[#14532D] space-y-2">
+                <div className="p-5 rounded-[22px] bg-[#E8F8EE] border border-[#34C759]/30 text-[#14532D] space-y-3">
                   <div className="flex items-center gap-2 text-base font-bold text-[#248A3D] font-['Prompt',sans-serif]">
                     <Award className="w-5 h-5 text-[#34C759]" />
                     <span>ยินดีด้วย! ท่านได้รับการพิจารณาจัดสรรทุนการศึกษา ประจำปี 2569</span>
@@ -245,9 +245,19 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
                   <p className="text-sm text-[#14532D] leading-relaxed">
                     จำนวนทุนการศึกษาที่ได้รับ: <strong>{matchedApp.awardedAmount ? `${matchedApp.awardedAmount.toLocaleString()} บาท` : 'ตามประกาศคณะกรรมการ'}</strong>
                   </p>
-                  <p className="text-xs text-[#166534]">
-                    พิธีมอบทุนจะจัดขึ้นในวันที่ {timelineConfig?.steps?.find((s) => s.id === 'step-5' || s.title?.includes('พิธีมอบทุน'))?.dateStr || '6 พฤศจิกายน 2569'} ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร
-                  </p>
+                  <div className="space-y-1.5 pt-1 border-t border-[#34C759]/20 text-xs text-[#166534]">
+                    <p className="leading-relaxed">
+                      พิธีมอบทุนจะจัดขึ้นใน: <strong>{timelineConfig?.steps?.find((s) => s.id === 'step-5' || s.title?.includes('พิธีมอบทุน'))?.dateStr || 'วันศุกร์ที่ 6 พฤศจิกายน 2569 (เวลา 08.30 - 12.00 น.)'}</strong>
+                    </p>
+                    <p className="font-medium text-[#14532D]">
+                      📍 ณ โถงชั้น 1 อาคารคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร
+                    </p>
+                    <div className="bg-white/80 p-3 rounded-xl border border-[#34C759]/25 text-xs text-[#14532D] space-y-1 mt-2 shadow-2xs">
+                      <p className="font-bold text-[#166534]">📝 เอกสารที่ต้องเตรียม</p>
+                      <p className="text-[11px] pl-1 text-[#14532D]">▫️ สำเนาบัตรประชาชน 1 ฉบับ</p>
+                      <p className="text-[11px] pl-1 text-[#14532D]">▫️ สำเนาหน้าบัญชีธนาคาร 1 ฉบับ</p>
+                    </div>
+                  </div>
                 </div>
               )}
 
