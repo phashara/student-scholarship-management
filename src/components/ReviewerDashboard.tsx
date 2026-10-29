@@ -408,7 +408,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
   // Admin full edit modal (แก้ไขข้อมูลในฐานข้อมูล)
   const [editApplicantTarget, setEditApplicantTarget] = useState<ScholarshipApplication | null>(null);
 
-  // Secure Delete modal (ยืนยันรหัสผ่าน 07011985 เพื่อลบข้อมูล)
+  // Secure Delete modal (ผู้ดูแลระบบยืนยันการลบ)
   const [deleteTargetApp, setDeleteTargetApp] = useState<ScholarshipApplication | null>(null);
   const [isClearAllModalOpen, setIsClearAllModalOpen] = useState<boolean>(false);
 
@@ -1453,7 +1453,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                           <button
                             onClick={() => setDeleteTargetApp(app)}
                             className="p-1.5 text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors cursor-pointer"
-                            title="ลบข้อมูลผู้สมัครรายนี้ (ต้องใส่รหัสผ่าน 07011985)"
+                            title="ลบข้อมูลผู้สมัครรายนี้ (เฉพาะผู้ดูแลระบบ)"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1710,7 +1710,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
                             type="button"
                             onClick={() => setDeleteTargetApp(app)}
                             className="p-1.5 text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors cursor-pointer"
-                            title="ลบข้อมูลผู้สมัครรายนี้ (ต้องใส่รหัสผ่าน 07011985)"
+                            title="ลบข้อมูลผู้สมัครรายนี้ (เฉพาะผู้ดูแลระบบ)"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -2415,7 +2415,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
         />
       )}
 
-      {/* Delete Single Applicant Modal (ยืนยันรหัสผ่าน 07011985) */}
+      {/* Delete Single Applicant Modal (ตรวจสิทธิ์ผู้ดูแลระบบ) */}
       <DeleteApplicantModal
         isOpen={!!deleteTargetApp}
         onClose={() => setDeleteTargetApp(null)}
@@ -2423,7 +2423,7 @@ export const ReviewerDashboard: React.FC<ReviewerDashboardProps> = ({
         onConfirmDelete={handleConfirmDeleteSingle}
       />
 
-      {/* Clear All Applicants Modal (ยืนยันรหัสผ่าน 07011985) */}
+      {/* Clear All Applicants Modal (ตรวจสิทธิ์ผู้ดูแลระบบ) */}
       <DeleteApplicantModal
         isOpen={isClearAllModalOpen}
         onClose={() => setIsClearAllModalOpen(false)}

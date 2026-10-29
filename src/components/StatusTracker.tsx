@@ -10,9 +10,6 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Coins,
-  Eye,
-  FileText,
   HelpCircle,
   MapPin,
   Phone,
@@ -22,34 +19,34 @@ import {
 import { ScholarshipApplication, TimelineConfig } from '../types';
 
 interface StatusTrackerProps {
-  applications: ScholarshipApplication[];
   applicationsAreCurrent?: boolean;
-  onViewApplication: (app: ScholarshipApplication) => void;
+  onLookup: (query: string) => Promise<ScholarshipApplication | null>;
   initialQuery?: string;
   timelineConfig?: TimelineConfig;
 }
 
 export const StatusTracker: React.FC<StatusTrackerProps> = ({
-  applications,
   applicationsAreCurrent = true,
-  onViewApplication,
+  onLookup,
   initialQuery = '',
   timelineConfig,
 }) => {
   const [query, setQuery] = useState(initialQuery);
   const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
+  const [matchedApp, setMatchedApp] = useState<ScholarshipApplication | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const trimmed = query.trim().toLowerCase();
-  const matchedApp = applications.find(
-    (a) =>
-      (a.studentId && a.studentId.toLowerCase() === trimmed) ||
-      (a.id && a.id.toLowerCase() === trimmed) ||
-      (a.fullName && a.fullName.toLowerCase().includes(trimmed))
-  );
-
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setHasSearched(true);
+    setIsSearching(true);
+    try {
+      setMatchedApp(await onLookup(query.trim()));
+    } catch {
+      setMatchedApp(null);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const interviewDateBadge =
@@ -132,46 +129,22 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
             </button>
           </form>
 
-          {/* Quick sample chips */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs text-[#8E8E93]">
-            <span>ตัวอย่างรหัส:</span>
-            {applications.slice(0, 3).map((app) => (
-              <button
-                key={app.id}
-                type="button"
-                onClick={() => {
-                  setQuery(app.studentId || app.id);
-                  setHasSearched(true);
-                }}
-                className="px-2.5 py-1 rounded-full bg-[#767680]/10 hover:bg-[#767680]/15 text-[#007AFF] font-mono transition-colors cursor-pointer"
-              >
-                {app.studentId || app.id}
-              </button>
-            ))}
-          </div>
+          <p className="pt-2 text-xs text-[#8E8E93]">ข้อมูลใบสมัครจะตรวจสอบผ่านระบบโดยตรง และไม่แสดงเอกสารส่วนตัวในหน้าสาธารณะ</p>
         </div>
       </div>
 
       {/* Result Area */}
       {hasSearched && (
         <>
-          {matchedApp ? (
+          {isSearching ? (
+            <div className="bg-white rounded-[26px] p-8 text-center text-sm text-[#636366]">กำลังตรวจสอบสถานะ...</div>
+          ) : matchedApp ? (
             <div className="bg-white rounded-[26px] p-6 sm:p-8 shadow-xs border border-black/[0.04] space-y-6 animate-fadeIn">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-black/[0.05]">
                 <div className="flex items-center gap-3.5">
-                  {matchedApp.studentPhotoDoc?.dataUrl ? (
-                    <div className="w-14 h-16 rounded-[14px] overflow-hidden border border-black/10 shadow-xs shrink-0 bg-[#F2F2F7]">
-                      <img
-                        src={matchedApp.studentPhotoDoc.dataUrl}
-                        alt={matchedApp.fullName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-14 h-16 rounded-[14px] border border-dashed border-[#8E8E93]/40 flex items-center justify-center shrink-0 bg-[#F8F9FA] text-[#8E8E93]">
-                      <User className="w-6 h-6 text-[#8E8E93]/60" />
-                    </div>
-                  )}
+                  <div className="w-14 h-16 rounded-[14px] border border-dashed border-[#8E8E93]/40 flex items-center justify-center shrink-0 bg-[#F8F9FA] text-[#8E8E93]">
+                    <User className="w-6 h-6 text-[#8E8E93]/60" />
+                  </div>
 
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -262,18 +235,14 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
               )}
 
               {/* Application Details Summary */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 bg-[#F2F2F7] rounded-[20px] text-xs sm:text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-[#F2F2F7] rounded-[20px] text-xs sm:text-sm">
                 <div>
                   <span className="text-[#8E8E93] block text-[11px]">ภาควิชา</span>
                   <span className="font-semibold text-[#1C1C1E]">{matchedApp.department}</span>
                 </div>
                 <div>
-                  <span className="text-[#8E8E93] block text-[11px]">เกรดเฉลี่ยสะสม (GPAX)</span>
-                  <span className="font-semibold text-[#1C1C1E] font-mono">{matchedApp.gpaxRange || matchedApp.gpax || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-[#8E8E93] block text-[11px]">เบอร์โทรศัพท์ติดต่อ</span>
-                  <span className="font-semibold text-[#1C1C1E]">{matchedApp.phone}</span>
+                  <span className="text-[#8E8E93] block text-[11px]">ชั้นปี</span>
+                  <span className="font-semibold text-[#1C1C1E]">{matchedApp.studyYear || '-'}</span>
                 </div>
                 <div>
                   <span className="text-[#8E8E93] block text-[11px]">สถานะการยื่นคำขอ</span>
@@ -291,16 +260,7 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  onClick={() => onViewApplication(matchedApp)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1C1C1E] hover:bg-black text-white text-xs sm:text-sm font-semibold transition-all active:scale-95 shadow-xs cursor-pointer"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>ดูใบสมัครฉบับเต็ม / พิมพ์เอกสาร</span>
-                </button>
-
+              <div className="flex items-center justify-end pt-2">
                 <a
                   href="tel:055961911"
                   className="inline-flex items-center gap-1.5 text-xs text-[#007AFF] hover:underline transition-colors"

@@ -652,7 +652,7 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
             <thead className="bg-[#F2F2F7] text-[#1C1C1E] font-bold border-b border-black/[0.06]">
               <tr>
                 <th className="py-3 px-3.5 text-center w-12">ลำดับ</th>
-                <th className="py-3 px-3.5">รหัสนิสิต</th>
+                {isAdminLoggedIn && <th className="py-3 px-3.5">รหัสนิสิต</th>}
                 <th className="py-3 px-4">ชื่อ - นามสกุล</th>
                 <th className="py-3 px-4">ภาควิชา</th>
                 <th className="py-3 px-3">ชั้นปี</th>
@@ -686,9 +686,9 @@ export const AnnouncementsSection: React.FC<AnnouncementsSectionProps> = ({
                     <td className="py-3 px-3.5 text-center font-mono font-bold text-[#8E8E93]">
                       {index + 1}
                     </td>
-                    <td className="py-3 px-3.5 font-mono font-bold text-[#007AFF]">
+                    {isAdminLoggedIn && <td className="py-3 px-3.5 font-mono font-bold text-[#007AFF]">
                       {app.studentId || '-'}
-                    </td>
+                    </td>}
                     <td className="py-3 px-4 font-semibold text-[#1C1C1E]">
                       {app.fullName}
                     </td>

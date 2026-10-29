@@ -16,32 +16,31 @@ function loadTs(path, names, imports = {}, globals = {}) {
 const policy = loadTs('src/utils/applicationSubmission.ts', [
   'prepareSubmission', 'validateSubmissionSize', 'validateAttachments', 'attachmentBytes', 'submissionErrorMessage',
 ]);
-const base = () => policy.prepareSubmission({ studentId: '12345678', fullName: 'Test', agreedToTerms: true }, '2569');
+const base = () => policy.prepareSubmission({ studentId: '12345678', fullName: 'Test', department: 'สังคมวิทยา', studyYear: 'ชั้นปีที่ 2', phone: '0800000000', agreedToTerms: true }, '2569');
 const file = size => ({ fileName: 'test.pdf', fileSize: size, fileType: 'application/pdf', dataUrl: 'data:application/pdf;base64,' + Buffer.alloc(size).toString('base64'), uploadedAt: '2026-10-07T00:00:00Z' });
 
 function server({ deny = false, offline = false, readFail = false, existing, differentConfirmation = false } = {}) {
   let saved = existing;
-  let writes = 0, cacheWrites = 0, transactions = 0;
-  const snapshot = data => ({ exists: () => !!data, data: () => data });
+  let writes = 0, cacheWrites = 0, calls = 0;
+  const callable = (_functions, name) => async ({ application }) => {
+    assert.equal(name, 'submitApplication');
+    calls++;
+    if (deny) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+    if (readFail) throw Object.assign(new Error('unavailable after server write'), { code: 'unavailable' });
+    if (saved && (saved.submissionToken !== application.submissionToken || saved.studentId !== application.studentId || saved.academicYear !== application.academicYear)) {
+      throw Object.assign(new Error('already-exists'), { code: 'already-exists' });
+    }
+    if (!saved) { saved = application; writes++; }
+    return { data: { application: differentConfirmation ? { ...saved, submissionToken: 'different' } : saved } };
+  };
   const api = loadTs('src/services/firebaseService.ts', ['submitApplicationOnline'], {}, {
     ...policy,
     db: {}, navigator: { onLine: !offline },
-    doc: (_db, _collection, id) => ({ id }),
-    runTransaction: async (_db, callback) => {
-      transactions++;
-      if (deny) throw Object.assign(new Error('denied'), { code: 'permission-denied' });
-      await callback({
-        get: async () => snapshot(saved),
-        set: (_ref, data) => { writes++; saved = data; },
-      });
-    },
-    getDocFromServer: async () => {
-      if (readFail) throw Object.assign(new Error('offline after commit'), { code: 'unavailable' });
-      return snapshot(differentConfirmation ? undefined : saved);
-    },
+    getFunctions: () => ({}),
+    httpsCallable: callable,
     saveLocalApplication: () => { cacheWrites++; },
   });
-  return { submit: api.submitApplicationOnline, saved: () => saved, writes: () => writes, cacheWrites: () => cacheWrites, transactions: () => transactions };
+  return { submit: api.submitApplicationOnline, saved: () => saved, writes: () => writes, cacheWrites: () => cacheWrites, calls: () => calls };
 }
 
 test('new submissions have UUID IDs and persist the retry ID', () => {
@@ -76,13 +75,13 @@ for (const mode of ['deny', 'offline', 'readFail', 'differentConfirmation']) {
     const x = server({ [mode]: true });
     await assert.rejects(x.submit(base()));
     assert.equal(x.cacheWrites(), 0);
-    if (mode === 'offline') assert.equal(x.transactions(), 0);
+    if (mode === 'offline') assert.equal(x.calls(), 0);
   });
 }
 test('oversized file is rejected before any database access', async () => {
   const x = server();
   await assert.rejects(x.submit({ ...base(), incomeCertificateDoc: file(800 * 1024) }), /450 KB/);
-  assert.equal(x.transactions(), 0);
+  assert.equal(x.calls(), 0);
 });
 test('combined attachment limit counts actual base64 bytes, not claimed file size', () => {
   const a = { ...file(350 * 1024), fileSize: 1 };
