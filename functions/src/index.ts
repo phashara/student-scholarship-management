@@ -3,6 +3,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { createHash } from 'node:crypto';
+import { validateApplication } from './validation.js';
 
 initializeApp();
 const databaseId = 'ai-studio-fe3c4a48-112f-4eaf-a043-a8df974c73b0';
@@ -12,40 +13,11 @@ const publicApplications = db.collection('public_applications');
 const metadata = db.collection('system_metadata');
 const region = 'asia-southeast1';
 const allowedStatuses = new Set(['submitted', 'eligible_for_interview', 'interviewed', 'awarded', 'not_selected']);
-const maxSubmissionBytes = 850_000;
 
 function requireAdmin(request: { auth?: { token: Record<string, unknown> } | null }) {
   const token = request.auth?.token;
   if (!token || token.email !== 'phasharak@gmail.com' || token.email_verified !== true) {
     throw new HttpsError('permission-denied', 'บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ');
-  }
-}
-
-function boundedString(value: unknown, max: number, required = false): value is string {
-  return typeof value === 'string' && value.length <= max && (!required || value.trim().length > 0);
-}
-
-function validateApplication(app: Record<string, unknown>) {
-  const requiredStrings: [string, number][] = [
-    ['id', 64], ['submissionToken', 96], ['fullName', 200], ['studentId', 30],
-    ['department', 100], ['studyYear', 50], ['phone', 30], ['academicYear', 10],
-  ];
-  for (const [key, max] of requiredStrings) {
-    if (!boundedString(app[key], max, true)) throw new HttpsError('invalid-argument', `ข้อมูล ${key} ไม่ถูกต้อง`);
-  }
-  if (app.id !== `FSS-${app.academicYear}-${app.submissionToken}` || !/^[A-Za-z0-9_-]+$/.test(app.id as string)) {
-    throw new HttpsError('invalid-argument', 'เลขที่ใบสมัครไม่ถูกต้อง');
-  }
-  if (!allowedStatuses.has(String(app.status)) || app.status !== 'submitted') {
-    throw new HttpsError('invalid-argument', 'สถานะใบสมัครไม่ถูกต้อง');
-  }
-  if (app.agreedToTerms !== true) throw new HttpsError('invalid-argument', 'ต้องยืนยันข้อตกลงก่อนสมัคร');
-  if (typeof app.awardedAmount === 'number' && (!Number.isFinite(app.awardedAmount) || app.awardedAmount < 0)) {
-    throw new HttpsError('invalid-argument', 'จำนวนเงินทุนไม่ถูกต้อง');
-  }
-  if (!boundedString(app.reasonForApplying ?? '', 3000)) throw new HttpsError('invalid-argument', 'เหตุผลการสมัครยาวเกินกำหนด');
-  if (Buffer.byteLength(JSON.stringify(app), 'utf8') > maxSubmissionBytes) {
-    throw new HttpsError('invalid-argument', 'ไฟล์แนบมีขนาดใหญ่เกินกำหนด กรุณาลดขนาดแล้วลองใหม่');
   }
 }
 

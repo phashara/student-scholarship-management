@@ -27,7 +27,40 @@ service cloud.firestore {
 
     match /timeline_configs/{configId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin() && validTimelineConfig(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    function validTimelineConfig(data) {
+      return data.keys().hasAll([
+          'academicYear', 'heroTitle', 'heroSubtitle', 'contactPhone', 'criticalNotice',
+          'steps', 'qualifications', 'requiredDocuments'
+        ])
+        && data.keys().hasOnly([
+          'academicYear', 'heroTitle', 'heroSubtitle', 'contactPhone', 'criticalNotice',
+          'steps', 'qualifications', 'requiredDocuments', 'systemPhase', 'closedNoticeTitle',
+          'closedNoticeMessage', 'lastUpdatedAt', 'lastUpdatedBy', 'version'
+        ])
+        && data.academicYear is string && data.academicYear.size() <= 10
+        && data.heroTitle is string && data.heroTitle.size() > 0 && data.heroTitle.size() <= 200
+        && data.heroSubtitle is string && data.heroSubtitle.size() <= 1000
+        && data.contactPhone is string && data.contactPhone.size() <= 30
+        && data.criticalNotice is map
+        && data.criticalNotice.keys().hasAll(['title', 'description', 'interviewDate', 'interviewLocation'])
+        && data.criticalNotice.keys().hasOnly(['title', 'description', 'interviewDate', 'interviewLocation'])
+        && data.criticalNotice.title is string && data.criticalNotice.title.size() <= 200
+        && data.criticalNotice.description is string && data.criticalNotice.description.size() <= 2000
+        && data.criticalNotice.interviewDate is string && data.criticalNotice.interviewDate.size() <= 200
+        && data.criticalNotice.interviewLocation is string && data.criticalNotice.interviewLocation.size() <= 300
+        && data.steps is list && data.steps.size() <= 30
+        && data.qualifications is list && data.qualifications.size() <= 30
+        && data.requiredDocuments is list && data.requiredDocuments.size() <= 30
+        && (!('systemPhase' in data) || data.systemPhase in ['open', 'closed_screening', 'interview_announced', 'awarded'])
+        && (!('closedNoticeTitle' in data) || (data.closedNoticeTitle is string && data.closedNoticeTitle.size() <= 200))
+        && (!('closedNoticeMessage' in data) || (data.closedNoticeMessage is string && data.closedNoticeMessage.size() <= 2000))
+        && (!('lastUpdatedAt' in data) || (data.lastUpdatedAt is string && data.lastUpdatedAt.size() <= 64))
+        && (!('lastUpdatedBy' in data) || (data.lastUpdatedBy is string && data.lastUpdatedBy.size() <= 200))
+        && (!('version' in data) || (data.version is string && data.version.size() <= 50));
     }
 
     match /{document=**} {

@@ -16,8 +16,16 @@ function loadTs(path, names, imports = {}, globals = {}) {
 const policy = loadTs('src/utils/applicationSubmission.ts', [
   'prepareSubmission', 'validateSubmissionSize', 'validateAttachments', 'attachmentBytes', 'submissionErrorMessage',
 ]);
-const base = () => policy.prepareSubmission({ studentId: '12345678', fullName: 'Test', department: 'สังคมวิทยา', studyYear: 'ชั้นปีที่ 2', phone: '0800000000', agreedToTerms: true }, '2569');
+const base = () => policy.prepareSubmission({
+  studentId: '12345678', fullName: 'Test', department: 'สังคมวิทยา', studyYear: 'ชั้นปีที่ 2',
+  phone: '0800000000', homeAddress: 'พิษณุโลก', gpaxRange: '3.00 - 3.49', agreedToTerms: true,
+}, '2569');
 const file = size => ({ fileName: 'test.pdf', fileSize: size, fileType: 'application/pdf', dataUrl: 'data:application/pdf;base64,' + Buffer.alloc(size).toString('base64'), uploadedAt: '2026-10-07T00:00:00Z' });
+class HttpsError extends Error { constructor(code, message) { super(message); this.code = code; } }
+const validationSource = stripTypeScriptTypes(fs.readFileSync('functions/src/validation.ts', 'utf8'))
+  .replace(/import[\s\S]*?from ['"]([^'"]+)['"];?/g, '')
+  .replace(/export /g, '');
+const validateServerApplication = vm.runInNewContext(validationSource + '\nvalidateApplication', { HttpsError, Buffer, Set, Object, RegExp, JSON });
 
 function server({ deny = false, offline = false, readFail = false, existing, differentConfirmation = false } = {}) {
   let saved = existing;
@@ -95,6 +103,30 @@ test('reasonable PDF and photograph payloads pass the combined budget', () => {
 });
 test('missing or invalid attachment content is rejected', () => {
   assert.throws(() => policy.validateAttachments({ incomeCertificateDoc: { ...file(1), dataUrl: undefined } }));
+});
+
+test('server accepts a complete valid submission', () => {
+  assert.doesNotThrow(() => validateServerApplication(base()));
+});
+test('server rejects applicant identity values that are too long or have the wrong type', () => {
+  assert.throws(() => validateServerApplication({ ...base(), studentId: '1'.repeat(10_000) }), /studentId/);
+  assert.throws(() => validateServerApplication({ ...base(), phone: 1234567890 }), /phone/);
+});
+test('server rejects malformed status, document IDs, and missing required fields', () => {
+  assert.throws(() => validateServerApplication({ ...base(), status: 'superuser_auto_grant' }), /สถานะ/);
+  assert.throws(() => validateServerApplication({ ...base(), id: '../../passwords' }), /เลขที่ใบสมัคร/);
+  const incomplete = base(); delete incomplete.fullName;
+  assert.throws(() => validateServerApplication(incomplete), /fullName/);
+});
+test('server rejects privileged and unknown keys, even when attached to a valid form', () => {
+  assert.throws(() => validateServerApplication({ ...base(), isAdmin: true, role: 'root' }), /ไม่อนุญาต/);
+  assert.throws(() => validateServerApplication({ ...base(), awardedAmount: -999999 }), /ไม่อนุญาต/);
+  assert.throws(() => validateServerApplication({ ...base(), internalNote: 'injected' }), /ไม่อนุญาต/);
+});
+test('server enforces reason and attachment size limits using actual payload bytes', () => {
+  assert.throws(() => validateServerApplication({ ...base(), reasonForApplying: 'ก'.repeat(50_000) }), /reasonForApplying/);
+  assert.throws(() => validateServerApplication({ ...base(), incomeCertificateDoc: file(451 * 1024) }), /ไม่ถูกต้อง/);
+  assert.throws(() => validateServerApplication({ ...base(), incomeCertificateDoc: { ...file(2), role: 'root' } }), /ไม่อนุญาต/);
 });
 
 function formFlow({ reject = false, oversized = false } = {}) {
