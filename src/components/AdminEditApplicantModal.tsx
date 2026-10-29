@@ -485,7 +485,7 @@ export const AdminEditApplicantModal: React.FC<AdminEditApplicantModalProps> = (
                   onClick={onDeleteClick}
                   disabled={isSaving}
                   className="px-3 py-2 rounded-[12px] text-xs font-semibold text-[#FF3B30] hover:bg-[#FF3B30]/10 transition-colors flex items-center gap-1.5 cursor-pointer"
-                  title="ลบข้อมูลผู้สมัครรายนี้ (ต้องใส่รหัสผ่าน 07011985)"
+                  title="ลบข้อมูลผู้สมัครรายนี้ (เฉพาะผู้ดูแลระบบ)"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>ลบใบสมัครนี้</span>

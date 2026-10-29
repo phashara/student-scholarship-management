@@ -11,12 +11,15 @@ function setup(initial = [{ id: 'FSS-2569-existing', studentId: '12345678' }]) {
   const source = raw.replace(/import[\s\S]*?from ['"][^'"]+['"];?/g, '').replace(/export /g, '');
   const api = vm.runInNewContext(source + '\n({subscribeApplications,firestoreReadErrorStatus})', {
     db: {}, collection: () => ({}),
+    getFunctions: () => ({}), httpsCallable: () => async () => ({ data: {} }),
     onSnapshot: (_ref, _opts, onUpdate, onError) => { update = onUpdate; fail = onError; return () => {}; },
     loadLocalApplications: () => structuredClone(cache),
+    safeSetApplicationsLocalStorage: apps => { writes++; cache = JSON.parse(JSON.stringify(apps)); return true; },
+    saveAppsIndexedDB: async () => {},
     handleFirestoreError: () => {}, OperationType: { GET: 'get' },
     localStorage: { setItem: (_key, value) => { writes++; cache = JSON.parse(value); } },
   });
-  api.subscribeApplications(apps => updates.push(Array.from(apps)), undefined, status => states.push(status));
+  api.subscribeApplications(apps => updates.push(Array.from(apps)), undefined, status => states.push(status), true);
   return {
     api, states, updates, cache: () => cache, writes: () => writes,
     fail: error => fail(error),
@@ -38,12 +41,13 @@ test('empty in-memory snapshot then quota failure preserves the previous registe
   assert.ok(!x.states.includes('server'));
 });
 
-test('partial Firestore cache cannot replace the complete saved register', () => {
+test('partial Firestore cache keeps showing the last server-confirmed register', () => {
   const x = setup([{ id: 'FSS-a' }, { id: 'FSS-b' }]);
   x.emit([{ id: 'FSS-a' }], { fromCache: true });
   assert.equal(x.cache().length, 2);
   assert.equal(x.writes(), 0);
-  assert.equal(x.updates.length, 0);
+  assert.equal(x.updates.length, 1);
+  assert.equal(x.updates.at(-1).length, 2);
 });
 
 test('a fresh device with quota failure remains unavailable, never server-confirmed empty', () => {

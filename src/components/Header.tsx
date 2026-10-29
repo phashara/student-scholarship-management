@@ -438,7 +438,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="text-left">
                     <div className="leading-tight">แอดมิน (เจ้าหน้าที่)</div>
                     <div className="text-[11px] text-[#8E8E93]">
-                      {isAdminLoggedIn ? 'ล็อกอินในชื่อ: phasharak' : 'ต้องเข้าสู่ระบบด้วยรหัสผ่าน'}
+                      {isAdminLoggedIn ? 'เข้าสู่ระบบด้วยบัญชีผู้ดูแล' : 'เข้าสู่ระบบด้วย Google'}
                     </div>
                   </div>
                 </div>

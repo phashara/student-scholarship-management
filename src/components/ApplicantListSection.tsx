@@ -274,7 +274,7 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
               <thead>
                 <tr className="bg-[#F2F2F7]/80 border-b border-black/[0.06] text-[12px] font-bold text-[#636366] uppercase tracking-wider">
                   <th className="py-3.5 px-4 text-center w-16">1. ลำดับ</th>
-                  <th className="py-3.5 px-4">2. รหัสนิสิต</th>
+                  {isAdminLoggedIn && <th className="py-3.5 px-4">2. รหัสนิสิต</th>}
                   <th className="py-3.5 px-4 min-w-[180px]">3. ชื่อ-สกุล</th>
                   <th className="py-3.5 px-4">4. ชั้นปี</th>
                   <th className="py-3.5 px-4">5. ภาควิชา/สถาน</th>
@@ -297,14 +297,14 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
                         {index + 1}
                       </td>
 
-                      {/* 2. รหัสนิสิต */}
-                      <td className="py-4 px-4">
+                      {/* รหัสนิสิตแสดงเฉพาะเจ้าหน้าที่ */}
+                      {isAdminLoggedIn && <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-[#007AFF] text-sm sm:text-base">
                             {app.studentId || '-'}
                           </span>
                         </div>
-                      </td>
+                      </td>}
 
                       {/* 3. ชื่อ-สกุล */}
                       <td className="py-4 px-4 min-w-[180px]">
@@ -350,7 +350,7 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
                             type="button"
                             onClick={() => setDeleteTarget(app)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors cursor-pointer"
-                            title="ลบข้อมูลผู้สมัครรายนี้ (ต้องใส่รหัสผ่าน 07011985)"
+                            title="ลบข้อมูลผู้สมัครรายนี้ (เฉพาะผู้ดูแลระบบ)"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span>ลบ</span>
@@ -402,7 +402,7 @@ export const ApplicantListSection: React.FC<ApplicantListSectionProps> = ({
         </div>
       </div>
 
-      {/* Delete Applicant Modal with password 07011985 */}
+      {/* Delete Applicant Modal (admin only) */}
       {isAdminLoggedIn && (
         <DeleteApplicantModal
           isOpen={!!deleteTarget}

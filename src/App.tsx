@@ -4,6 +4,8 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from './firebase';
 import {
   Award,
   Calendar,
@@ -38,7 +40,10 @@ import {
   subscribeTimelineConfig,
   firestoreReadErrorStatus,
   ApplicationReadStatus,
+  backfillPublicApplicationsOnce,
+  lookupApplicationStatus,
 } from './services/firebaseService';
+import { clearAppsIndexedDB, safeSetApplicationsLocalStorage } from './utils/offlineStorage';
 import { ScholarshipApplication, TimelineConfig } from './types';
 
 export default function App() {
@@ -55,9 +60,7 @@ export default function App() {
   const [timelineError, setTimelineError] = useState<'quota-exceeded' | 'error' | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const lastRefresh = useRef(0);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
-    return sessionStorage.getItem('socsci_admin_auth') === 'true';
-  });
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState<boolean>(false);
   const needsApplications = ['announcements', 'status', 'applicants', 'admin'].includes(activeTab);
   const hasReadError = applicationReadStatus === 'quota-exceeded' || applicationReadStatus === 'error' || !!timelineError;
@@ -65,11 +68,21 @@ export default function App() {
   const applicationsAreCurrent = applicationReadStatus === 'server';
 
   useEffect(() => {
-    // Initial immediate load from local storage
-    setApplications(loadApplications());
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      const isAuthorized = user?.email?.toLowerCase() === 'phasharak@gmail.com' && user.emailVerified;
+      setIsAdminLoggedIn(isAuthorized);
+      if (isAuthorized) {
+        setApplications(loadApplications());
+        backfillPublicApplicationsOnce().catch((error) => console.warn('Public roster setup deferred:', error));
+      } else {
+        // Clear historical full-record caches that were written by the old public client.
+        safeSetApplicationsLocalStorage([]);
+        clearAppsIndexedDB().catch(() => {});
+        setApplications([]);
+      }
+    });
     setTimelineConfig(loadTimelineConfig());
-
-    // The form and schedule do not need to download every applicant's attachments.
+    return unsubscribeAuth;
   }, []);
 
   useEffect(() => {
@@ -77,10 +90,11 @@ export default function App() {
     const unsubscribeApps = subscribeApplications(
       setApplications,
       undefined,
-      setApplicationReadStatus
+      setApplicationReadStatus,
+      isAdminLoggedIn,
     );
     return unsubscribeApps;
-  }, [refreshVersion]);
+  }, [refreshVersion, isAdminLoggedIn]);
 
   useEffect(() => {
     const unsubscribeTimeline = subscribeTimelineConfig((remoteConfig) => {
@@ -135,9 +149,8 @@ export default function App() {
     }
   };
 
-  const handleAdminLogout = () => {
-    sessionStorage.removeItem('socsci_admin_auth');
-    sessionStorage.removeItem('socsci_admin_user');
+  const handleAdminLogout = async () => {
+    await signOut(auth);
     setIsAdminLoggedIn(false);
     if (activeTab === 'admin') {
       setActiveTab('form');
@@ -153,7 +166,10 @@ export default function App() {
         applicationCount={applicationsAreCurrent ? applications.length : undefined}
         onOpenScoringModal={() => setIsScoringModalOpen(true)}
         isAdminLoggedIn={isAdminLoggedIn}
-        onAdminLogin={() => setIsAdminLoggedIn(true)}
+      onAdminLogin={() => {
+        setIsAdminLoggedIn(true);
+        setActiveTab('admin');
+      }}
         onAdminLogout={handleAdminLogout}
         isCloudConnected={applicationsAreCurrent && !hasReadError}
         cloudStatusText={hasReadError ? (quotaExceeded ? 'โควตาฐานข้อมูลเต็ม' : 'ยังอ่านข้อมูลล่าสุดไม่ได้') : applicationsAreCurrent ? 'ยืนยันรายชื่อจากฐานข้อมูลแล้ว' : needsApplications ? 'กำลังตรวจสอบรายชื่อ' : 'ตรวจรายชื่อเมื่อเปิดรายการ'}
@@ -214,9 +230,8 @@ export default function App() {
 
         {activeTab === 'status' && (
           <StatusTracker
-            applications={applications}
             applicationsAreCurrent={applicationsAreCurrent}
-            onViewApplication={(app) => setSelectedApplication(app)}
+            onLookup={lookupApplicationStatus}
             initialQuery={trackingInitialQuery}
             timelineConfig={timelineConfig}
           />
