@@ -5,10 +5,6 @@
 import {
   collection,
   doc,
-  deleteDoc,
-  getDocFromServer,
-  getDocsFromServer,
-  writeBatch,
   onSnapshot,
   setDoc,
 } from 'firebase/firestore';
@@ -166,25 +162,13 @@ export function subscribeApplications(
 }
 
 /**
- * Clear all applications from both Firestore and LocalStorage
+ * Clear all applications via Cloud Function callable
  */
 export async function clearAllApplicationsOnline(): Promise<void> {
-  const snapshot = await getDocsFromServer(collection(db, APPLICATIONS_COLLECTION));
-  const removedIds = snapshot.docs.flatMap(item => [normalizeApplicationId(item.id), normalizeApplicationId(String(item.data().id || ''))]);
-  removedIds.forEach(id => pendingDeletedApplicationIds.add(id));
-  try {
-    for (let start = 0; start < snapshot.docs.length; start += 400) {
-      const batch = writeBatch(db);
-      snapshot.docs.slice(start, start + 400).forEach(item => batch.delete(item.ref));
-      await batch.commit();
-    }
-    safeSetApplicationsLocalStorage([]);
-    await clearAppsIndexedDB();
-    localStorage.removeItem('nu_socsci_scholarship_draft_2569');
-  } catch (error) {
-    removedIds.forEach(id => pendingDeletedApplicationIds.delete(id));
-    throw error;
-  }
+  await httpsCallable(functions, 'clearApplications')({});
+  safeSetApplicationsLocalStorage([]);
+  await clearAppsIndexedDB();
+  localStorage.removeItem('nu_socsci_scholarship_draft_2569');
 }
 
 /**
@@ -209,41 +193,27 @@ export async function submitApplicationOnline(app: ScholarshipApplication): Prom
 }
 
 // Staff updates keep the existing application ID. New submissions use the
-// transaction above and must never enter this merge-based update path.
+// callable above and must never enter this update path.
 export async function saveApplicationOnline(app: ScholarshipApplication): Promise<void> {
-  const docRef = doc(db, APPLICATIONS_COLLECTION, app.id);
-  const cleanData = sanitizeForFirestore({ ...app, updatedAt: new Date().toISOString() });
-  await setDoc(docRef, cleanData, { merge: true });
-  saveLocalApplication({ ...app, updatedAt: String(cleanData.updatedAt) });
+  const cleanData = sanitizeForFirestore(app);
+  const result = await httpsCallable<{ application: Record<string, unknown> }, { application: ScholarshipApplication }>(functions, 'updateApplication')({ application: cleanData });
+  const saved = result.data.application;
+  saveLocalApplication({ ...app, updatedAt: String(saved.updatedAt || new Date().toISOString()) });
 }
 
 /**
- * Delete an application from Firestore and LocalStorage permanently
+ * Delete an application via Cloud Function callable
  */
 export async function deleteApplicationOnline(appId: string, studentId?: string): Promise<void> {
   if (!appId) throw new Error('ไม่พบเลขที่ใบสมัครที่ต้องการลบ');
   const normalizedAppId = normalizeApplicationId(appId);
-  const candidates = Array.from(new Set([appId, normalizedAppId, normalizedAppId.replace(/^FSS-/, 'APP-')]));
   pendingDeletedApplicationIds.add(normalizedAppId);
-  candidates.forEach(id => pendingDeletedApplicationIds.add(normalizeApplicationId(id)));
   try {
-    let deletedId = '';
-    for (const candidate of candidates) {
-      const ref = doc(db, APPLICATIONS_COLLECTION, candidate);
-      const snapshot = await getDocFromServer(ref);
-      if (!snapshot.exists()) continue;
-      if (studentId && snapshot.data().studentId !== studentId) {
-        throw new Error('รหัสนิสิตไม่ตรงกับใบสมัคร กรุณารีเฟรชแล้วตรวจสอบอีกครั้ง');
-      }
-      await deleteDoc(ref);
-      deletedId = candidate;
-      break;
-    }
-    if (!deletedId) throw new Error('ไม่พบใบสมัครในฐานข้อมูล กรุณารีเฟรชแล้วลองใหม่');
+    await httpsCallable(functions, 'deleteApplication')({ applicationId: appId, studentId });
     safeSetApplicationsLocalStorage(loadLocalApplications().filter(app => normalizeApplicationId(app.id) !== normalizedAppId));
     deleteAppIndexedDB(normalizedAppId).catch(() => {});
   } catch (error) {
-    candidates.forEach(id => pendingDeletedApplicationIds.delete(normalizeApplicationId(id)));
+    pendingDeletedApplicationIds.delete(normalizedAppId);
     throw error;
   }
 }
@@ -254,31 +224,7 @@ export async function lookupApplicationStatus(query: string): Promise<Scholarshi
 }
 
 export async function backfillPublicApplicationsOnce(): Promise<void> {
-  const marker = doc(db, 'system_metadata', 'public_applications_backfill');
-  const existing = await getDocFromServer(marker);
-  if (existing.get('complete') === true) return;
-
-  const snapshot = await getDocsFromServer(collection(db, APPLICATIONS_COLLECTION));
-  for (let start = 0; start < snapshot.docs.length; start += 400) {
-    const batch = writeBatch(db);
-    snapshot.docs.slice(start, start + 400).forEach((item) => {
-      const app = item.data();
-      const projection: Record<string, unknown> = {
-        id: item.id,
-        fullName: String(app.fullName || '').slice(0, 200),
-        department: String(app.department || '').slice(0, 100),
-        studyYear: String(app.studyYear || '').slice(0, 50),
-        academicYear: String(app.academicYear || '').slice(0, 10),
-        status: app.status,
-        createdAt: String(app.createdAt || ''),
-        finalRank: typeof app.finalRank === 'number' ? app.finalRank : null,
-      };
-      if (app.status === 'awarded' && typeof app.awardedAmount === 'number') projection.awardedAmount = app.awardedAmount;
-      batch.set(doc(db, 'public_applications', item.id), projection);
-    });
-    await batch.commit();
-  }
-  await setDoc(marker, { complete: true, migrated: snapshot.size, completedAt: new Date().toISOString() });
+  await httpsCallable(functions, 'backfillPublicApplications')({});
 }
 
 /**

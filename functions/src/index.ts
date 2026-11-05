@@ -221,6 +221,27 @@ export const setAdminClaim = onCall({ region, maxInstances: 1 }, async (request)
   return { email: targetEmail, admin: grant };
 });
 
+export const updateApplication = onCall({ region, maxInstances: 5 }, async (request) => {
+  requireAdmin(request);
+  const app = request.data?.application;
+  if (!app || typeof app !== 'object' || Array.isArray(app)) throw new HttpsError('invalid-argument', 'ไม่พบข้อมูลใบสมัคร');
+  const clean = app as Record<string, unknown>;
+  const id = clean.id;
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new HttpsError('invalid-argument', 'เลขใบสมัครไม่ถูกต้อง');
+  const ref = applications.doc(id);
+  const existing = await ref.get();
+  if (!existing.exists) throw new HttpsError('not-found', 'ไม่พบใบสมัครในฐานข้อมูล');
+  clean.updatedAt = new Date().toISOString();
+  await ref.set(clean, { merge: true });
+  await writeAuditLog({
+    action: 'update_application',
+    actor: String(request.auth?.token?.email || ''),
+    actorUid: String(request.auth?.uid || ''),
+    target: id,
+  });
+  return { application: (await ref.get()).data() };
+});
+
 export const backfillPublicApplications = onCall({ region, maxInstances: 1, timeoutSeconds: 540 }, async (request) => {
   requireAdmin(request);
   const checkpoint = metadata.doc('public_applications_backfill');
