@@ -1,7 +1,7 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 
 const submissionFields = new Set([
-  'id', 'submissionToken', 'createdAt', 'updatedAt', 'academicYear', 'status', 'agreedToTerms',
+  'id', 'submissionToken', 'createdAt', 'updatedAt', 'academicYear', 'status', 'agreedToTerms', 'pdpaConsent',
   'fullName', 'studentId', 'department', 'studyYear', 'phone', 'homeAddress', 'gpaxRange',
   'studentPhotoDoc', 'academicTranscriptDoc', 'fatherName', 'fatherStatus', 'fatherAge',
   'fatherOccupation', 'fatherOccupationDetail', 'motherName', 'motherStatus', 'motherAge',
@@ -84,6 +84,7 @@ export function validateApplication(value: unknown): asserts value is Record<str
   if (!/^[0-9a-f-]{36}$/.test(app.submissionToken as string)) invalid('รหัสยืนยันใบสมัครไม่ถูกต้อง');
   if (app.status !== 'submitted') invalid('สถานะใบสมัครไม่ถูกต้อง');
   if (app.agreedToTerms !== true) invalid('ต้องยืนยันข้อตกลงก่อนสมัคร');
+  if (app.pdpaConsent !== true) invalid('ต้องยินยอมให้จัดเก็บข้อมูลส่วนบุคคลก่อนสมัคร');
   let totalAttachmentBytes = 0;
   for (const field of attachmentFields) totalAttachmentBytes += validateAttachment(app[field], field);
   if (totalAttachmentBytes > maxTotalAttachmentBytes) invalid('ขนาดไฟล์แนบรวมเกินกำหนด');

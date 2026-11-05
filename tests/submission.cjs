@@ -18,7 +18,7 @@ const policy = loadTs('src/utils/applicationSubmission.ts', [
 ]);
 const base = () => policy.prepareSubmission({
   studentId: '12345678', fullName: 'Test', department: 'สังคมวิทยา', studyYear: 'ชั้นปีที่ 2',
-  phone: '0800000000', homeAddress: 'พิษณุโลก', gpaxRange: '3.00 - 3.49', agreedToTerms: true,
+  phone: '0800000000', homeAddress: 'พิษณุโลก', gpaxRange: '3.00 - 3.49', agreedToTerms: true, pdpaConsent: true,
 }, '2569');
 const file = size => ({ fileName: 'test.pdf', fileSize: size, fileType: 'application/pdf', dataUrl: 'data:application/pdf;base64,' + Buffer.alloc(size).toString('base64'), uploadedAt: '2026-10-07T00:00:00Z' });
 class HttpsError extends Error { constructor(code, message) { super(message); this.code = code; } }

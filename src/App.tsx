@@ -163,6 +163,9 @@ export default function App() {
   const handleAdminLogout = async () => {
     await signOut(auth);
     setIsAdminLoggedIn(false);
+    safeSetApplicationsLocalStorage([]);
+    clearAppsIndexedDB().catch(() => {});
+    setApplications([]);
     if (activeTab === 'admin') {
       setActiveTab('form');
     }

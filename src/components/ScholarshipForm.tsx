@@ -71,6 +71,7 @@ import { submitApplicationOnline } from '../services/firebaseService';
 import { prepareSubmission, submissionErrorMessage, validateAttachments, validateSubmissionSize } from '../utils/applicationSubmission';
 import { ScholarshipApplication, TimelineConfig } from '../types';
 import { DocumentUploader } from './DocumentUploader';
+import { PrivacyNotice } from './PrivacyNotice';
 
 interface ScholarshipFormProps {
   onSubmitSuccess: (application: ScholarshipApplication) => void;
@@ -88,6 +89,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
     academicYear: '2569',
     status: 'submitted',
     agreedToTerms: false,
+    pdpaConsent: false,
 
     // Module 1
     fullName: '',
@@ -158,6 +160,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
   const [draftWarning, setDraftWarning] = useState('');
   const [processingFiles, setProcessingFiles] = useState(0);
   const [isSlowSubmission, setIsSlowSubmission] = useState(false);
+  const [isPrivacyNoticeOpen, setIsPrivacyNoticeOpen] = useState(false);
   const submittingRef = useRef(false);
   const processingFilesRef = useRef(0);
   const formDataRef = useRef(formData);
@@ -321,6 +324,9 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
     if (mod === 0) {
       if (!formData.agreedToTerms) {
         errs.agreedToTerms = 'กรุณากดรับรองว่าข้อมูลเป็นความจริงทุกประการเพื่อดำเนินการต่อ';
+      }
+      if (!formData.pdpaConsent) {
+        errs.pdpaConsent = 'กรุณายินยอมให้จัดเก็บข้อมูลส่วนบุคคลเพื่อดำเนินการต่อ';
       }
     } else if (mod === 1) {
       if (!formData.fullName?.trim()) errs.fullName = 'กรุณากรอกชื่อ-สกุล พร้อมคำนำหน้า';
@@ -639,6 +645,45 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
                 <p className="text-xs text-[#d93025] flex items-center gap-1.5 font-medium">
                   <AlertCircle className="w-4 h-4" />
                   <span>{errors.agreedToTerms}</span>
+                </p>
+              )}
+
+              <div
+                onClick={() => handleInputChange('pdpaConsent', !formData.pdpaConsent)}
+                className={`cursor-pointer flex items-start gap-3 p-4 rounded-[16px] border transition-all ${
+                  formData.pdpaConsent
+                    ? 'border-[#34C759] bg-[#34C759]/5 text-[#34C759]'
+                    : 'border-[#dadce0] bg-white hover:bg-[#F2F2F7] text-[#202124]'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  id="pdpa-checkbox"
+                  checked={formData.pdpaConsent || false}
+                  onChange={(e) => handleInputChange('pdpaConsent', e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded accent-[#34C759] cursor-pointer"
+                />
+                <label
+                  htmlFor="pdpa-checkbox"
+                  className="text-xs sm:text-sm font-semibold cursor-pointer leading-relaxed"
+                >
+                  2. ข้าพเจ้ายินยอมให้คณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร จัดเก็บ ใช้
+                  และประมวลผลข้อมูลส่วนบุคคลของข้าพเจ้าเพื่อการพิจารณาทุนการศึกษา ตาม{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setIsPrivacyNoticeOpen(true); }}
+                    className="text-[#007AFF] underline cursor-pointer"
+                  >
+                    นโยบายคุ้มครองข้อมูลส่วนบุคคล
+                  </button>{' '}
+                  <span className="text-[#d93025] font-bold">*</span>
+                </label>
+              </div>
+
+              {errors.pdpaConsent && (
+                <p className="text-xs text-[#d93025] flex items-center gap-1.5 font-medium">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{errors.pdpaConsent}</span>
                 </p>
               )}
             </div>
@@ -1798,6 +1843,7 @@ export const ScholarshipForm: React.FC<ScholarshipFormProps> = ({
         </div>
         </fieldset>
       </form>
+      <PrivacyNotice isOpen={isPrivacyNoticeOpen} onClose={() => setIsPrivacyNoticeOpen(false)} />
     </div>
   );
 };
