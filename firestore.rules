@@ -4,7 +4,7 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email == 'phasharak@gmail.com';
+        && request.auth.token.admin == true;
     }
 
     // Full applications contain identity, contact, family, financial, and

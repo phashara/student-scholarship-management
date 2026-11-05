@@ -14,8 +14,6 @@ interface AdminLoginModalProps {
   onLoginSuccess: () => void;
 }
 
-const AUTHORIZED_ADMIN_EMAIL = 'phasharak@gmail.com';
-
 export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   isOpen,
   onClose,
@@ -32,9 +30,14 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     setIsSigningIn(true);
     try {
       const credential = await signInWithPopup(auth, new GoogleAuthProvider());
-      if (credential.user.email?.toLowerCase() !== AUTHORIZED_ADMIN_EMAIL || !credential.user.emailVerified) {
+      if (!credential.user.emailVerified) {
         await signOut(auth);
-        throw new Error(`ระบบนี้อนุญาตเฉพาะบัญชี ${AUTHORIZED_ADMIN_EMAIL}`);
+        throw new Error('บัญชีนี้ยังไม่ได้ยืนยัน email');
+      }
+      const tokenResult = await credential.user.getIdTokenResult(true);
+      if (tokenResult.claims.admin !== true) {
+        await signOut(auth);
+        throw new Error('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ กรุณาติดต่อผู้ดูแลระบบเพื่อขอสิทธิ์');
       }
       onLoginSuccess();
       onClose();

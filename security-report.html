@@ -1,0 +1,487 @@
+<title>NU SocSci Scholarship Security Audit v2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --fg: #1c1917;
+    --fg-muted: #57534e;
+    --border: #e7e5e4;
+    --accent: #b91c1c;
+    --accent-bg: #fef2f2;
+    --critical: #991b1b;
+    --critical-bg: #fef2f2;
+    --high: #c2410c;
+    --high-bg: #fff7ed;
+    --medium: #a16207;
+    --medium-bg: #fefce8;
+    --low: #4d7c0f;
+    --low-bg: #f7fee7;
+    --info-bg: #eff6ff;
+    --info: #1d4ed8;
+    --code-bg: #f5f5f4;
+    --fixed-bg: #f0fdf4;
+    --fixed: #15803d;
+    --font-body: 'IBM Plex Sans Thai', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c0a09;
+      --surface: #1c1917;
+      --fg: #e7e5e4;
+      --fg-muted: #a8a29e;
+      --border: #292524;
+      --accent: #ef4444;
+      --accent-bg: #1a0505;
+      --critical: #fca5a5;
+      --critical-bg: #1a0808;
+      --high: #fdba74;
+      --high-bg: #1a0f05;
+      --medium: #fde047;
+      --medium-bg: #1a1805;
+      --low: #a3e635;
+      --low-bg: #0f1a05;
+      --info-bg: #0a1628;
+      --info: #93c5fd;
+      --code-bg: #292524;
+      --fixed-bg: #052e16;
+      --fixed: #86efac;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c0a09;
+    --surface: #1c1917;
+    --fg: #e7e5e4;
+    --fg-muted: #a8a29e;
+    --border: #292524;
+    --accent: #ef4444;
+    --accent-bg: #1a0505;
+    --critical: #fca5a5;
+    --critical-bg: #1a0808;
+    --high: #fdba74;
+    --high-bg: #1a0f05;
+    --medium: #fde047;
+    --medium-bg: #1a1805;
+    --low: #a3e635;
+    --low-bg: #0f1a05;
+    --info-bg: #0a1628;
+    --info: #93c5fd;
+    --code-bg: #292524;
+    --fixed-bg: #052e16;
+    --fixed: #86efac;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    line-height: 1.7;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0;
+  }
+  .container { max-width: 780px; margin: 0 auto; padding: 2rem 0 3rem; }
+  .report-header {
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .report-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    letter-spacing: -0.01em;
+  }
+  .report-header .subtitle {
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+    margin: 0;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2rem;
+    margin-top: 1rem;
+    font-size: 0.8125rem;
+    color: var(--fg-muted);
+  }
+  .meta-row span { white-space: nowrap; }
+  .summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 2.5rem;
+  }
+  .summary-card {
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .summary-card .count {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .summary-card .label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 0.25rem;
+  }
+  .sc-high { background: var(--high-bg); color: var(--high); border: 1px solid color-mix(in srgb, var(--high) 25%, transparent); }
+  .sc-medium { background: var(--medium-bg); color: var(--medium); border: 1px solid color-mix(in srgb, var(--medium) 25%, transparent); }
+  .sc-low { background: var(--low-bg); color: var(--low); border: 1px solid color-mix(in srgb, var(--low) 25%, transparent); }
+  .sc-fixed { background: var(--fixed-bg); color: var(--fixed); border: 1px solid color-mix(in srgb, var(--fixed) 25%, transparent); }
+  .section-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title:first-of-type { margin-top: 0; }
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--border);
+  }
+  .finding.high { border-left-color: var(--high); }
+  .finding.medium { border-left-color: var(--medium); }
+  .finding.low { border-left-color: var(--low); }
+  .finding-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .severity-badge {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+  .badge-high { background: var(--high-bg); color: var(--high); }
+  .badge-medium { background: var(--medium-bg); color: var(--medium); }
+  .badge-low { background: var(--low-bg); color: var(--low); }
+  .finding-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.4;
+  }
+  .finding-body { font-size: 0.875rem; color: var(--fg-muted); margin: 0; }
+  .finding-body + .finding-body { margin-top: 0.5rem; }
+  .finding-detail {
+    font-size: 0.8125rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: var(--code-bg);
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  .finding-detail code {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    white-space: pre;
+    display: block;
+    color: var(--fg);
+  }
+  .recommendation {
+    font-size: 0.8125rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: var(--info-bg);
+    border-radius: 6px;
+    color: var(--info);
+    line-height: 1.6;
+  }
+  .recommendation strong { font-weight: 600; }
+  code.inline {
+    font-family: var(--font-mono);
+    background: var(--code-bg);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+  .overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem 2rem;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 500px) { .overview-grid { grid-template-columns: 1fr; } }
+  .overview-grid dt { color: var(--fg-muted); font-weight: 500; }
+  .overview-grid dd { margin: 0 0 0.5rem; font-weight: 600; }
+  .fixed-section {
+    background: var(--fixed-bg);
+    border: 1px solid color-mix(in srgb, var(--fixed) 25%, transparent);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+  }
+  .fixed-section h3 { color: var(--fixed); margin: 0 0 0.5rem; font-size: 0.9375rem; }
+  .fixed-section ul { margin: 0; padding-left: 1.25rem; color: var(--fg-muted); }
+  .fixed-section li { margin-bottom: 0.25rem; }
+  .closing {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8125rem;
+    color: var(--fg-muted);
+    line-height: 1.7;
+  }
+</style>
+
+<div class="container">
+  <header class="report-header">
+    <h1>Security Audit Report v2</h1>
+    <p class="subtitle">ระบบรับสมัครทุนการศึกษา คณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร</p>
+    <div class="meta-row">
+      <span>วันที่ตรวจสอบ: 5 พ.ย. 2569</span>
+      <span>Source: GitHub (phashara/student-scholarship-management)</span>
+      <span>Stack: React + TypeScript + Firebase + Cloud Functions</span>
+      <span>Hosting: GitHub Pages + Firebase</span>
+    </div>
+  </header>
+
+  <!-- Summary -->
+  <div class="summary-strip">
+    <div class="summary-card sc-high">
+      <div class="count">3</div>
+      <div class="label">High</div>
+    </div>
+    <div class="summary-card sc-medium">
+      <div class="count">5</div>
+      <div class="label">Medium</div>
+    </div>
+    <div class="summary-card sc-low">
+      <div class="count">3</div>
+      <div class="label">Low</div>
+    </div>
+    <div class="summary-card sc-fixed">
+      <div class="count">6</div>
+      <div class="label">Fixed</div>
+    </div>
+  </div>
+
+  <!-- System Overview -->
+  <h2 class="section-title">ภาพรวมระบบ</h2>
+  <dl class="overview-grid">
+    <dt>Frontend</dt>
+    <dd>React + TypeScript + Vite</dd>
+    <dt>Backend</dt>
+    <dd>Cloud Functions (asia-southeast1)</dd>
+    <dt>Database</dt>
+    <dd>Cloud Firestore (named instance)</dd>
+    <dt>Authentication</dt>
+    <dd>Firebase Auth + Google Sign-In</dd>
+    <dt>Hosting</dt>
+    <dd>GitHub Pages (frontend)</dd>
+    <dt>ข้อมูลอ่อนไหว</dt>
+    <dd>ส่วนตัว / การเงิน / ครอบครัว / สุขภาพ</dd>
+  </dl>
+
+  <!-- What's been fixed -->
+  <div class="fixed-section">
+    <h3>สิ่งที่แก้ไขแล้ว (เทียบกับเวอร์ชัน AI Studio เดิม)</h3>
+    <ul>
+      <li><strong>Firestore Rules แก้ไขแล้ว</strong> — ข้อมูลใบสมัครฉบับเต็มจำกัดเฉพาะ admin เท่านั้น (ตรวจ auth + email + verified)</li>
+      <li><strong>แยก Public Collection</strong> — สร้าง <code class="inline">public_applications</code> ที่แสดงเฉพาะชื่อ, สาขา, สถานะ ไม่รวมข้อมูลส่วนตัว</li>
+      <li><strong>Admin ใช้ Firebase Auth</strong> — ไม่ hardcode password แล้ว ใช้ Google Sign-In + email verification</li>
+      <li><strong>Server-Side Validation</strong> — Cloud Functions ตรวจสอบข้อมูลใบสมัครทุกฟิลด์ (field allowlist, size limits, file type)</li>
+      <li><strong>Rate Limiting</strong> — จำกัดจำนวน request (submit: 50/ชม., status query: 60/นาที)</li>
+      <li><strong>Timeline Config ป้องกันแล้ว</strong> — ต้องเป็น admin ถึงจะแก้ไขได้</li>
+    </ul>
+  </div>
+
+  <!-- HIGH -->
+  <h2 class="section-title">ช่องโหว่ระดับ High</h2>
+
+  <div class="finding high">
+    <div class="finding-header">
+      <span class="severity-badge badge-high">High</span>
+      <h3 class="finding-title">1. Admin เป็นบัญชีเดียว Hardcoded ทั้งระบบ</h3>
+    </div>
+    <p class="finding-body">ระบบทั้งหมดพึ่งพาบัญชี <code class="inline">phasharak@gmail.com</code> เพียงบัญชีเดียว ซึ่ง hardcode ไว้ใน 3 จุด:</p>
+    <p class="finding-body">&bull; <code class="inline">firestore.rules</code> — ฟังก์ชัน <code class="inline">isAdmin()</code><br>&bull; <code class="inline">functions/src/index.ts</code> — ฟังก์ชัน <code class="inline">requireAdmin()</code><br>&bull; <code class="inline">src/components/AdminLoginModal.tsx</code> — ค่า <code class="inline">AUTHORIZED_ADMIN_EMAIL</code></p>
+    <div class="finding-detail"><code>// firestore.rules:4-8
+function isAdmin() {
+  return request.auth != null
+    && request.auth.token.email_verified == true
+    && request.auth.token.email == 'phasharak@gmail.com';
+}</code></div>
+    <p class="finding-body">ผลกระทบ: (1) ไม่สามารถเพิ่ม admin หรือกรรมการพิจารณาทุนคนอื่นได้โดยไม่ deploy code ใหม่ (2) หาก Google Account นี้ถูก compromise ระบบทั้งหมดจะถูกเข้าถึง (3) หากเจ้าของบัญชีลาออกหรือเปลี่ยนตำแหน่ง ระบบจะไม่มีผู้ดูแล</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> ใช้ Firebase Auth custom claims (<code class="inline">admin: true</code>) กำหนด role แทนการ hardcode email — สามารถเพิ่ม/ลบ admin ผ่าน Firebase Console หรือ Cloud Function โดยไม่ต้อง deploy ใหม่ และรองรับหลาย admin ได้</div>
+  </div>
+
+  <div class="finding high">
+    <div class="finding-header">
+      <span class="severity-badge badge-high">High</span>
+      <h3 class="finding-title">2. API ตรวจสอบสถานะ (getApplicationStatus) เปิดเผย PII มากเกินไป</h3>
+    </div>
+    <p class="finding-body">Callable function <code class="inline">getApplicationStatus</code> เปิดให้ใครก็ตามที่รู้รหัสนิสิต (8-12 หลัก) ดึงข้อมูลได้:</p>
+    <div class="finding-detail"><code>// functions/src/index.ts:137-148
+return { application: {
+  id: doc.id,
+  fullName: data.fullName,     // ชื่อ-นามสกุล
+  studentId: data.studentId,   // รหัสนิสิต
+  department: data.department, // สาขาวิชา
+  studyYear: data.studyYear,   // ชั้นปี
+  academicYear: data.academicYear,
+  status: data.status,         // สถานะทุน
+  createdAt: data.createdAt,
+  awardedAmount: data.awardedAmount,  // จำนวนเงินที่ได้
+} };</code></div>
+    <p class="finding-body">Rate limit 60 ครั้ง/นาที ป้องกัน brute-force ได้ระดับหนึ่ง แต่รหัสนิสิตมีรูปแบบคาดเดาได้ง่าย (เลข 8-12 หลัก, ขึ้นต้นด้วยปีที่เข้า เช่น 66xxxxxx) ผู้โจมตีสามารถ enumerate ข้อมูลนิสิตที่สมัครทุนและจำนวนเงินที่ได้รับได้</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> (1) ให้นิสิตต้องใส่ทั้ง <code class="inline">studentId</code> + <code class="inline">submissionToken</code> (UUID) จึงจะดูสถานะได้ (2) ลด response ให้เหลือเฉพาะ <code class="inline">status</code> กับ <code class="inline">fullName</code> (3) ลด rate limit เหลือ 10-15 ครั้ง/นาที</div>
+  </div>
+
+  <div class="finding high">
+    <div class="finding-header">
+      <span class="severity-badge badge-high">High</span>
+      <h3 class="finding-title">3. ช่องโหว่ PDPA — ไม่มีการจัดการสิทธิ์ข้อมูลส่วนบุคคลตามกฎหมาย</h3>
+    </div>
+    <p class="finding-body">ระบบเก็บข้อมูลส่วนบุคคลที่มีความอ่อนไหวสูง (รายได้ครอบครัว, สถานะหนี้สิน, การเจ็บป่วย, สภาพครอบครัว) ภายใต้ พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA) แต่ขาดกลไกสำคัญ:</p>
+    <p class="finding-body">&bull; ไม่มี Privacy Policy หรือแจ้งวัตถุประสงค์การเก็บข้อมูลอย่างชัดเจน<br>&bull; <code class="inline">agreedToTerms</code> ไม่มี link ไปยังเอกสารสิทธิ์ที่ระบุขอบเขตการใช้ข้อมูล<br>&bull; ไม่มี Data Retention Policy — ข้อมูลเก็บไว้ไม่มีกำหนดลบ<br>&bull; ไม่มีกลไกให้นิสิตขอดู แก้ไข หรือลบข้อมูลส่วนตัวของตัวเอง (Data Subject Rights)<br>&bull; <code class="inline">public_applications</code> เปิดเผยชื่อ-นามสกุลต่อสาธารณะ</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> (1) เพิ่มหน้า Privacy Notice ระบุวัตถุประสงค์, ระยะเวลาเก็บข้อมูล, สิทธิ์ของเจ้าของข้อมูล (2) กำหนด Data Retention Policy เช่น ลบหลังสิ้นสุดปีการศึกษา (3) เพิ่มกลไกให้นิสิตขอลบข้อมูล (4) ทำ Data Protection Impact Assessment (DPIA)</div>
+  </div>
+
+  <!-- MEDIUM -->
+  <h2 class="section-title">ช่องโหว่ระดับ Medium</h2>
+
+  <div class="finding medium">
+    <div class="finding-header">
+      <span class="severity-badge badge-medium">Medium</span>
+      <h3 class="finding-title">4. ไม่มี Firebase App Check</h3>
+    </div>
+    <p class="finding-body">ค่า <code class="inline">recaptchaSiteKey</code> ใน config เป็นค่าว่าง แสดงว่ายังไม่ได้เปิดใช้ App Check ผู้โจมตีสามารถใช้ Firebase SDK จากแอปใดก็ได้ (ไม่จำเป็นต้องผ่านเว็บไซต์จริง) เพื่อเรียก Cloud Functions หรืออ่าน <code class="inline">public_applications</code></p>
+    <div class="finding-detail"><code>// firebase-applet-config.json
+"recaptchaSiteKey": ""  // ← ยังไม่ได้ตั้งค่า</code></div>
+    <div class="recommendation"><strong>แนะนำ:</strong> เปิดใช้ Firebase App Check ด้วย reCAPTCHA Enterprise เพื่อยืนยันว่า request มาจากเว็บไซต์จริงเท่านั้น</div>
+  </div>
+
+  <div class="finding medium">
+    <div class="finding-header">
+      <span class="severity-badge badge-medium">Medium</span>
+      <h3 class="finding-title">5. ข้อมูลอ่อนไหวถูก Cache ใน Browser ของ Admin</h3>
+    </div>
+    <p class="finding-body">เมื่อ admin login ระบบจะ cache ข้อมูลใบสมัครทั้งหมด (รวมรายได้, หนี้สิน, การเจ็บป่วย, ไฟล์แนบ) ลงใน LocalStorage และ IndexedDB ของ browser</p>
+    <div class="finding-detail"><code>// src/services/firebaseService.ts:141-149
+if (isAdmin && !snapshot.metadata.fromCache) {
+  try {
+    const filtered = remoteApps.filter(...);
+    safeSetApplicationsLocalStorage(filtered);  // ← cache ใน localStorage
+    saveAppsIndexedDB(filtered).catch(() => {}); // ← cache ใน IndexedDB
+  } catch { }
+}</code></div>
+    <p class="finding-body">หากเครื่อง admin ถูกเข้าถึง (คอมพิวเตอร์สาธารณะ, ถูกขโมย, มัลแวร์) ข้อมูลส่วนตัวนิสิตทุกคนจะถูกเปิดเผย ข้อมูลยังคงอยู่แม้จะ logout แล้ว</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> (1) ลบ cache ทันทีเมื่อ logout (<code class="inline">localStorage.clear()</code> + <code class="inline">clearAppsIndexedDB()</code>) (2) ลดขนาด cache — ไม่จำเป็นต้อง cache ข้อมูลอ่อนไหวเช่นรายได้ครอบครัว (3) พิจารณาเข้ารหัสข้อมูลก่อน cache</div>
+  </div>
+
+  <div class="finding medium">
+    <div class="finding-header">
+      <span class="severity-badge badge-medium">Medium</span>
+      <h3 class="finding-title">6. Admin Operations บางส่วนข้าม Cloud Functions</h3>
+    </div>
+    <p class="finding-body">มี Cloud Functions ที่มี validation ครบ (<code class="inline">deleteApplication</code>, <code class="inline">clearApplications</code>) แต่ client-side code ยังมีเส้นทางที่เขียน/ลบ Firestore โดยตรง:</p>
+    <div class="finding-detail"><code>// firebaseService.ts — ลบโดยตรงผ่าน deleteDoc()
+await deleteDoc(ref);  // ข้าม callable ที่มี studentId verification
+
+// firebaseService.ts — ลบทั้งหมดโดยตรงผ่าน writeBatch
+const batch = writeBatch(db);
+snapshot.docs.forEach(item => batch.delete(item.ref));
+
+// firebaseService.ts — แก้ไขข้อมูลโดยตรงผ่าน setDoc merge
+await setDoc(docRef, cleanData, { merge: true });</code></div>
+    <p class="finding-body">Firestore rules ป้องกันไว้แล้ว (ต้องเป็น admin) แต่ callable functions มี safeguard เพิ่ม เช่น studentId verification ก่อนลบ, rate limiting ของ admin operations</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> ย้ายทุก write operation ไปใช้ Cloud Functions เท่านั้น เพื่อรวมศูนย์ validation และ audit logging ในที่เดียว</div>
+  </div>
+
+  <div class="finding medium">
+    <div class="finding-header">
+      <span class="severity-badge badge-medium">Medium</span>
+      <h3 class="finding-title">7. ไม่มี Audit Log</h3>
+    </div>
+    <p class="finding-body">ระบบไม่บันทึก log ว่าใคร (admin/ระบบ) ทำอะไร เมื่อไหร่ เช่น:</p>
+    <p class="finding-body">&bull; ใครเปลี่ยนสถานะทุนจาก "ยื่นแล้ว" เป็น "ได้รับทุน"<br>&bull; ใครอนุมัติจำนวนเงินทุน / เปลี่ยนจำนวนเงิน<br>&bull; ใครลบใบสมัคร<br>&bull; ใคร export CSV ข้อมูล<br>&bull; ใครแก้ไข timeline/ประกาศ</p>
+    <p class="finding-body">หากเกิดข้อพิพาท (เช่น นิสิตร้องเรียนว่าข้อมูลถูกแก้ไข) จะไม่มีหลักฐานตรวจสอบย้อนหลัง</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> เพิ่ม <code class="inline">audit_logs</code> collection ที่บันทึกทุก write operation ผ่าน Cloud Functions: <code class="inline">{action, userId, targetId, before, after, timestamp, ip}</code></div>
+  </div>
+
+  <div class="finding medium">
+    <div class="finding-header">
+      <span class="severity-badge badge-medium">Medium</span>
+      <h3 class="finding-title">8. Public Applications เปิดเผยชื่อ-นามสกุลสาธารณะ</h3>
+    </div>
+    <p class="finding-body">Collection <code class="inline">public_applications</code> เปิดให้อ่านได้โดยไม่ต้อง login (<code class="inline">allow read: if true;</code>) และมีฟิลด์ <code class="inline">fullName</code>, <code class="inline">department</code>, <code class="inline">studyYear</code> — ทำให้ใครก็ตามสามารถดูรายชื่อนิสิตที่สมัครทุนการศึกษาได้ทั้งหมด</p>
+    <div class="finding-detail"><code>// functions/src/index.ts:24-37 — publicProjection
+{
+  id,
+  fullName: String(app.fullName || '').slice(0, 200),
+  department: String(app.department || '').slice(0, 100),
+  studyYear: String(app.studyYear || '').slice(0, 50),
+  status: ...,
+  finalRank: ...,
+  awardedAmount: ...  // เมื่อ status === 'awarded'
+}</code></div>
+    <p class="finding-body">การเปิดเผยว่าใครสมัครทุน (= ต้องการความช่วยเหลือทางการเงิน) อาจถือเป็นข้อมูลอ่อนไหวภายใต้ PDPA</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> แสดงเฉพาะ <code class="inline">status</code> และ <code class="inline">id</code> ในหน้าสาธารณะ ให้นิสิตใช้ submissionToken เพื่อดูข้อมูลของตัวเอง ชื่อ-นามสกุลแสดงเฉพาะในหน้าประกาศผล (เมื่อ status = awarded)</div>
+  </div>
+
+  <!-- LOW -->
+  <h2 class="section-title">ช่องโหว่ระดับ Low</h2>
+
+  <div class="finding low">
+    <div class="finding-header">
+      <span class="severity-badge badge-low">Low</span>
+      <h3 class="finding-title">9. ไม่มี Security Headers (CSP, HSTS)</h3>
+    </div>
+    <p class="finding-body">เว็บไซต์ host บน GitHub Pages ซึ่งไม่รองรับ custom security headers การขาด Content Security Policy (CSP) ทำให้มีความเสี่ยง XSS สูงขึ้น แม้ว่า React จะ escape HTML โดยอัตโนมัติแล้วก็ตาม</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> เพิ่ม <code class="inline">&lt;meta http-equiv="Content-Security-Policy"&gt;</code> ใน <code class="inline">index.html</code> หรือย้ายไป Firebase Hosting ซึ่งรองรับ custom headers ใน <code class="inline">firebase.json</code></div>
+  </div>
+
+  <div class="finding low">
+    <div class="finding-header">
+      <span class="severity-badge badge-low">Low</span>
+      <h3 class="finding-title">10. Self-Healing Timeline อาจเขียนทับข้อมูล</h3>
+    </div>
+    <p class="finding-body">ใน <code class="inline">subscribeTimelineConfig</code> มีกลไก auto-fix ที่ตรวจจับ format เก่าและเขียนทับโดยอัตโนมัติ:</p>
+    <div class="finding-detail"><code>// firebaseService.ts:304-306
+if (rawStr.includes('28') || rawStr.includes('11.30') || ...) {
+  saveTimelineConfigOnline(data).catch(() => {});
+}</code></div>
+    <p class="finding-body">เงื่อนไข <code class="inline">rawStr.includes('28')</code> กว้างเกินไป — อาจ trigger จาก "28 ตุลาคม" หรือข้อมูลอื่นที่มีเลข 28 ทำให้เกิด write ไม่จำเป็น</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> ใช้ version field เท่านั้นในการตัดสินใจ migrate: <code class="inline">if (!rawData.version || rawData.version !== data.version)</code></div>
+  </div>
+
+  <div class="finding low">
+    <div class="finding-header">
+      <span class="severity-badge badge-low">Low</span>
+      <h3 class="finding-title">11. ไม่มี Backup Strategy</h3>
+    </div>
+    <p class="finding-body">ไม่มี automated backup สำหรับ Firestore database หาก admin กด "ล้างข้อมูล" โดยไม่ตั้งใจ หรือ database เกิด corruption ข้อมูลจะหายถาวร — มีเฉพาะ <code class="inline">clearApplications</code> callable ที่จำกัด 10,000 documents แต่ไม่มี backup ก่อนลบ</p>
+    <div class="recommendation"><strong>แนะนำ:</strong> (1) เปิดใช้ Firestore scheduled backups (2) เพิ่ม confirmation step ก่อนลบข้อมูลจำนวนมาก เช่น ต้องพิมพ์ปีการศึกษา (3) เพิ่ม soft delete (archive) แทนการลบถาวร</div>
+  </div>
+
+  <!-- Closing -->
+  <div class="closing">
+    <p><strong>สรุป:</strong> ระบบมีการปรับปรุงด้านความปลอดภัยไปมากจากเวอร์ชันเดิม — Firestore rules ป้องกันข้อมูลฉบับเต็มแล้ว, Admin ใช้ Firebase Auth แทน hardcoded password, มี Cloud Functions ที่ validate ข้อมูลและจำกัด rate ช่องโหว่ที่เหลือเป็นเรื่อง (1) Single Admin hardcoded email (2) PII exposure ผ่าน status API และ public collection (3) PDPA compliance gaps (4) ขาด audit logging ซึ่งสำคัญอย่างยิ่งหากจะพัฒนาเป็นระบบรับบริจาคทุนที่เกี่ยวข้องกับธุรกรรมการเงิน</p>
+    <p style="margin-top:0.75rem;">รายงานนี้ตรวจสอบจาก source code บน GitHub repository (phashara/student-scholarship-management) ไม่ได้ทำ penetration test ที่ตัวระบบจริง หากต้องการรายงานเชิงลึกควรทำ security assessment แบบเต็มรูปแบบ รวมถึง Firebase Emulator test กับ Dirty Dozen payloads ที่ระบุใน security_spec.md</p>
+  </div>
+</div>

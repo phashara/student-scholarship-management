@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
@@ -16,7 +17,7 @@ const allowedStatuses = new Set(['submitted', 'eligible_for_interview', 'intervi
 
 function requireAdmin(request: { auth?: { token: Record<string, unknown> } | null }) {
   const token = request.auth?.token;
-  if (!token || token.email !== 'phasharak@gmail.com' || token.email_verified !== true) {
+  if (!token || token.admin !== true || token.email_verified !== true) {
     throw new HttpsError('permission-denied', 'บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ');
   }
 }
@@ -145,6 +146,40 @@ export const getApplicationStatus = onCall({ region, maxInstances: 20, invoker: 
     createdAt: data.createdAt,
     awardedAmount: data.awardedAmount,
   } };
+});
+
+export const bootstrapFirstAdmin = onCall({ region, maxInstances: 1 }, async (request) => {
+  const token = request.auth?.token;
+  if (!token || token.email_verified !== true) {
+    throw new HttpsError('unauthenticated', 'กรุณาเข้าสู่ระบบก่อน');
+  }
+  const marker = metadata.doc('admin_bootstrapped');
+  const existing = await marker.get();
+  if (existing.exists) {
+    throw new HttpsError('already-exists', 'ระบบมีผู้ดูแลแล้ว ไม่สามารถ bootstrap ซ้ำได้');
+  }
+  const uid = request.auth!.uid;
+  await getAuth().setCustomUserClaims(uid, { admin: true });
+  await marker.set({ bootstrappedBy: token.email, bootstrappedAt: Date.now() });
+  return { email: token.email, admin: true };
+});
+
+export const setAdminClaim = onCall({ region, maxInstances: 1 }, async (request) => {
+  requireAdmin(request);
+  const targetEmail = request.data?.email;
+  if (typeof targetEmail !== 'string' || !targetEmail.includes('@')) {
+    throw new HttpsError('invalid-argument', 'กรุณาระบุ email ที่ถูกต้อง');
+  }
+  const grant = request.data?.admin !== false;
+  const targetUser = await getAuth().getUserByEmail(targetEmail);
+  const currentClaims = targetUser.customClaims || {};
+  if (grant) {
+    await getAuth().setCustomUserClaims(targetUser.uid, { ...currentClaims, admin: true });
+  } else {
+    const { admin: _, ...rest } = currentClaims;
+    await getAuth().setCustomUserClaims(targetUser.uid, rest);
+  }
+  return { email: targetEmail, admin: grant };
 });
 
 export const backfillPublicApplications = onCall({ region, maxInstances: 1, timeoutSeconds: 540 }, async (request) => {

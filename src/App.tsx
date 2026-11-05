@@ -68,17 +68,28 @@ export default function App() {
   const applicationsAreCurrent = applicationReadStatus === 'server';
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      const isAuthorized = user?.email?.toLowerCase() === 'phasharak@gmail.com' && user.emailVerified;
-      setIsAdminLoggedIn(isAuthorized);
-      if (isAuthorized) {
-        setApplications(loadApplications());
-        backfillPublicApplicationsOnce().catch((error) => console.warn('Public roster setup deferred:', error));
-      } else {
-        // Clear historical full-record caches that were written by the old public client.
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user || !user.emailVerified) {
+        setIsAdminLoggedIn(false);
         safeSetApplicationsLocalStorage([]);
         clearAppsIndexedDB().catch(() => {});
         setApplications([]);
+        return;
+      }
+      try {
+        const tokenResult = await user.getIdTokenResult();
+        const isAuthorized = tokenResult.claims.admin === true;
+        setIsAdminLoggedIn(isAuthorized);
+        if (isAuthorized) {
+          setApplications(loadApplications());
+          backfillPublicApplicationsOnce().catch((error) => console.warn('Public roster setup deferred:', error));
+        } else {
+          safeSetApplicationsLocalStorage([]);
+          clearAppsIndexedDB().catch(() => {});
+          setApplications([]);
+        }
+      } catch {
+        setIsAdminLoggedIn(false);
       }
     });
     setTimelineConfig(loadTimelineConfig());
