@@ -49,12 +49,12 @@
 
 ## Development Roadmap
 
-### Phase 1: Security Fixes (priority order)
-1. **Multi-admin** — Replace hardcoded email with Firebase Auth custom claims
-2. **Audit log** — Add audit_logs collection, log all write operations
-3. **Migrate client writes to callables** — saveApplicationOnline, deleteApplicationOnline, clearAllApplicationsOnline should use Cloud Functions
-4. **PDPA basics** — Privacy Notice, proper consent, clear cache on logout
-5. **App Check + reduce status API response** — Enable reCAPTCHA, limit PII in getApplicationStatus
+### Phase 1: Security Fixes (COMPLETED 2026-11-05)
+1. ~~**Multi-admin** — Firebase Auth custom claims~~ ✅
+2. ~~**Audit log** — audit_logs collection, all write ops logged~~ ✅
+3. ~~**Migrate client writes to callables** — all mutations via Cloud Functions~~ ✅
+4. ~~**PDPA basics** — Privacy Notice, consent checkbox, cache cleanup on logout~~ ✅
+5. ~~**App Check + reduce status API** — enforceAppCheck enabled, PII removed from status~~ ✅
 
 ### Phase 2: Donation System
 1. Data model (donors, donations, funds)
@@ -66,7 +66,8 @@
 
 ## Security Audit
 - Audit report v2 completed 2026-11-05
-- 6 issues from v1 fixed, 11 remaining (3 High, 5 Medium, 3 Low)
+- Phase 1 security fixes completed 2026-11-05 (5 commits)
+- Remaining: App Check requires reCAPTCHA Enterprise setup in Firebase Console
 - Full report: security-report.html in project root (also published as Artifact)
 
 ## Conventions
