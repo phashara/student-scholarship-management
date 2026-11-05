@@ -157,10 +157,10 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
                       </span>
                     </div>
                     <h3 className="text-xl font-bold text-[#1C1C1E] font-['Prompt',sans-serif]">
-                      {matchedApp.fullName}
+                      ผลการตรวจสอบสถานะ
                     </h3>
                     <p className="text-xs sm:text-sm text-[#636366] mt-0.5">
-                      รหัสนิสิต {matchedApp.studentId} • ภาควิชา{matchedApp.department} ({matchedApp.studyYear})
+                      ภาควิชา{matchedApp.department} ({matchedApp.studyYear})
                     </p>
                   </div>
                 </div>

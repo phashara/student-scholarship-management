@@ -78,7 +78,7 @@ export const syncPublicApplication = onDocumentWritten({
   await publicApplications.doc(id).set(publicProjection(id, after.data() as Record<string, unknown>), { merge: false });
 });
 
-export const submitApplication = onCall({ region, maxInstances: 10, invoker: 'public' }, async (request) => {
+export const submitApplication = onCall({ region, maxInstances: 10, invoker: 'public', enforceAppCheck: true }, async (request) => {
   await enforceRateLimit(request, 'submit', 50, 60 * 60 * 1000);
   const app = request.data?.application;
   if (!app || typeof app !== 'object' || Array.isArray(app)) throw new HttpsError('invalid-argument', 'ไม่พบข้อมูลใบสมัคร');
@@ -150,7 +150,7 @@ export const clearApplications = onCall({ region, maxInstances: 1, timeoutSecond
   return { deleted };
 });
 
-export const getApplicationStatus = onCall({ region, maxInstances: 20, invoker: 'public' }, async (request) => {
+export const getApplicationStatus = onCall({ region, maxInstances: 20, invoker: 'public', enforceAppCheck: true }, async (request) => {
   await enforceRateLimit(request, 'status', 60, 60 * 1000);
   const query = String(request.data?.query || '').trim();
   if (query.length < 6 || query.length > 64) throw new HttpsError('invalid-argument', 'กรอกรหัสนิสิตหรือเลขที่ใบสมัครให้ถูกต้อง');
@@ -163,8 +163,6 @@ export const getApplicationStatus = onCall({ region, maxInstances: 20, invoker: 
   const data = doc.data()!;
   return { application: {
     id: doc.id,
-    fullName: data.fullName,
-    studentId: data.studentId,
     department: data.department,
     studyYear: data.studyYear,
     academicYear: data.academicYear,
