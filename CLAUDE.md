@@ -15,6 +15,7 @@
 - `public_applications` — projection สาธารณะ (ชื่อ, สาขา, สถานะ) synced by trigger
 - `timeline_configs` — กำหนดการและเงื่อนไข (public read, admin write)
 - `system_metadata` — internal state (admin-only)
+- `audit_logs` — บันทึกการกระทำทั้งหมด (admin read, Cloud Functions write only)
 - `api_rate_limits` — rate limiting counters (system-managed)
 
 ### Cloud Functions (functions/src/index.ts)

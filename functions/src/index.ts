@@ -15,11 +15,23 @@ const metadata = db.collection('system_metadata');
 const region = 'asia-southeast1';
 const allowedStatuses = new Set(['submitted', 'eligible_for_interview', 'interviewed', 'awarded', 'not_selected']);
 
+const auditLogs = db.collection('audit_logs');
+
 function requireAdmin(request: { auth?: { token: Record<string, unknown> } | null }) {
   const token = request.auth?.token;
   if (!token || token.admin !== true || token.email_verified !== true) {
     throw new HttpsError('permission-denied', 'บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ');
   }
+}
+
+async function writeAuditLog(entry: {
+  action: string;
+  actor: string;
+  actorUid?: string;
+  target?: string;
+  details?: Record<string, unknown>;
+}) {
+  await auditLogs.add({ ...entry, timestamp: Date.now() }).catch(() => {});
 }
 
 function publicProjection(id: string, app: Record<string, unknown>) {
@@ -86,6 +98,7 @@ export const submitApplication = onCall({ region, maxInstances: 10, invoker: 'pu
   });
   const saved = (await ref.get()).data();
   if (!saved || saved.submissionToken !== clean.submissionToken) throw new HttpsError('internal', 'ยังยืนยันการบันทึกไม่ได้');
+  await writeAuditLog({ action: 'submit_application', actor: 'public', target: clean.id as string });
   return { application: saved };
 });
 
@@ -106,6 +119,13 @@ export const deleteApplication = onCall({ region, maxInstances: 5 }, async (requ
     throw new HttpsError('failed-precondition', 'รหัสนิสิตไม่ตรงกับใบสมัคร กรุณารีเฟรชแล้วตรวจสอบอีกครั้ง');
   }
   await ref.delete();
+  await writeAuditLog({
+    action: 'delete_application',
+    actor: String(request.auth?.token?.email || ''),
+    actorUid: String(request.auth?.uid || ''),
+    target: ref.id,
+    details: { studentId: expectedStudentId },
+  });
   return { deleted: true };
 });
 
@@ -121,6 +141,12 @@ export const clearApplications = onCall({ region, maxInstances: 1, timeoutSecond
     deleted += page.size;
     if (deleted > 10_000) throw new HttpsError('resource-exhausted', 'ลบเกิน 10,000 รายการ กรุณาแบ่งดำเนินการ');
   }
+  await writeAuditLog({
+    action: 'clear_applications',
+    actor: String(request.auth?.token?.email || ''),
+    actorUid: String(request.auth?.uid || ''),
+    details: { deleted },
+  });
   return { deleted };
 });
 
@@ -161,6 +187,12 @@ export const bootstrapFirstAdmin = onCall({ region, maxInstances: 1 }, async (re
   const uid = request.auth!.uid;
   await getAuth().setCustomUserClaims(uid, { admin: true });
   await marker.set({ bootstrappedBy: token.email, bootstrappedAt: Date.now() });
+  await writeAuditLog({
+    action: 'bootstrap_admin',
+    actor: String(token.email),
+    actorUid: uid,
+    target: String(token.email),
+  });
   return { email: token.email, admin: true };
 });
 
@@ -179,6 +211,13 @@ export const setAdminClaim = onCall({ region, maxInstances: 1 }, async (request)
     const { admin: _, ...rest } = currentClaims;
     await getAuth().setCustomUserClaims(targetUser.uid, rest);
   }
+  await writeAuditLog({
+    action: 'set_admin_claim',
+    actor: String(request.auth?.token?.email || ''),
+    actorUid: String(request.auth?.uid || ''),
+    target: targetEmail,
+    details: { grant },
+  });
   return { email: targetEmail, admin: grant };
 });
 
@@ -201,5 +240,11 @@ export const backfillPublicApplications = onCall({ region, maxInstances: 1, time
     cursor = page.docs[page.docs.length - 1];
   }
   await checkpoint.set({ complete: true, migrated: count, completedAt: Date.now() });
+  await writeAuditLog({
+    action: 'backfill_public',
+    actor: String(request.auth?.token?.email || ''),
+    actorUid: String(request.auth?.uid || ''),
+    details: { migrated: count },
+  });
   return { migrated: count };
 });
