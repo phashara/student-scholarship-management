@@ -35,12 +35,16 @@ const functions = getFunctions(undefined, 'asia-southeast1');
 const normalizeApplicationId = (id: string) => id.replace(/^APP-/, 'FSS-');
 const pendingDeletedApplicationIds = new Set<string>();
 
-export type ApplicationReadStatus = 'idle' | 'loading' | 'cache' | 'server' | 'quota-exceeded' | 'error';
+export type ReadFailureStatus = 'quota-exceeded' | 'permission-denied' | 'unavailable' | 'error';
+export type ApplicationReadStatus = 'idle' | 'loading' | 'cache' | 'server' | ReadFailureStatus;
 
-export function firestoreReadErrorStatus(error: unknown): 'quota-exceeded' | 'error' {
+export function firestoreReadErrorStatus(error: unknown): ReadFailureStatus {
   const candidate = error as { code?: string; message?: string } | null;
-  return /resource-exhausted|quota|RESOURCE_EXHAUSTED/i.test(`${candidate?.code || ''} ${candidate?.message || String(error)}`)
-    ? 'quota-exceeded' : 'error';
+  const detail = `${candidate?.code || ''} ${candidate?.message || String(error)}`;
+  if (/resource-exhausted|quota/i.test(detail)) return 'quota-exceeded';
+  if (/permission-denied|insufficient permissions/i.test(detail)) return 'permission-denied';
+  if (/unavailable|offline|network-request-failed|deadline-exceeded/i.test(detail)) return 'unavailable';
+  return 'error';
 }
 
 export const DEMO_APP_IDS = new Set([
@@ -78,7 +82,8 @@ export function subscribeApplications(
   onStatus?: (status: ApplicationReadStatus) => void,
   isAdmin = false,
 ): () => void {
-  const appsRef = collection(db, isAdmin ? APPLICATIONS_COLLECTION : 'public_applications');
+  const collectionName = isAdmin ? APPLICATIONS_COLLECTION : 'public_applications';
+  const appsRef = collection(db, collectionName);
 
   // Set up real-time listener with proper error callback as required by skill
   const unsubscribe = onSnapshot(
@@ -150,7 +155,7 @@ export function subscribeApplications(
       }
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, APPLICATIONS_COLLECTION);
+      handleFirestoreError(error, OperationType.GET, collectionName);
       onStatus?.(firestoreReadErrorStatus(error));
       if (onError) onError(error);
       // Never fall back to full private records for a public visitor.
@@ -232,30 +237,28 @@ export async function backfillPublicApplicationsOnce(): Promise<void> {
  */
 export function subscribeTimelineConfig(
   onUpdate: (config: TimelineConfig) => void,
-  onError?: (err: unknown) => void
+  onError?: (err: unknown) => void,
+  onStatus?: (status: 'server' | 'cache') => void,
 ): () => void {
   const docRef = doc(db, TIMELINE_COLLECTION, TIMELINE_DOC_ID);
 
   const unsubscribe = onSnapshot(
     docRef,
     (snapshot) => {
-      if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return;
+      if (snapshot.metadata.hasPendingWrites) return;
+      if (snapshot.metadata.fromCache) { onStatus?.('cache'); return; }
       if (snapshot.exists()) {
         const rawData = snapshot.data() as TimelineConfig;
         const data = normalizeTimelineConfig(rawData);
         saveLocalTimelineConfig(data);
         onUpdate(data);
 
-        // Self-heal cloud timeline if it had legacy 28 or old schedule format
-        const rawStr = JSON.stringify(rawData);
-        if (rawStr.includes('28') || rawStr.includes('11.30') || !rawData.version || rawData.version !== data.version) {
-          saveTimelineConfigOnline(data).catch(() => {});
-        }
       } else {
         const local = loadLocalTimelineConfig();
         onUpdate(local);
         // Reading the schedule must not create or overwrite cloud data.
       }
+      onStatus?.('server');
     },
     (error) => {
       handleFirestoreError(error, OperationType.GET, `${TIMELINE_COLLECTION}/${TIMELINE_DOC_ID}`);

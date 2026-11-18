@@ -40,6 +40,7 @@ import {
   subscribeTimelineConfig,
   firestoreReadErrorStatus,
   ApplicationReadStatus,
+  ReadFailureStatus,
   backfillPublicApplicationsOnce,
   lookupApplicationStatus,
 } from './services/firebaseService';
@@ -57,14 +58,14 @@ export default function App() {
   const [trackingInitialQuery, setTrackingInitialQuery] = useState<string>('');
   const [isScoringModalOpen, setIsScoringModalOpen] = useState<boolean>(false);
   const [applicationReadStatus, setApplicationReadStatus] = useState<ApplicationReadStatus>('idle');
-  const [timelineError, setTimelineError] = useState<'quota-exceeded' | 'error' | null>(null);
+  const [timelineError, setTimelineError] = useState<ReadFailureStatus | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const lastRefresh = useRef(0);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState<boolean>(false);
   const needsApplications = ['announcements', 'status', 'applicants', 'admin'].includes(activeTab);
-  const hasReadError = applicationReadStatus === 'quota-exceeded' || applicationReadStatus === 'error' || !!timelineError;
-  const quotaExceeded = applicationReadStatus === 'quota-exceeded' || timelineError === 'quota-exceeded';
+  const hasReadError = ['quota-exceeded', 'permission-denied', 'unavailable', 'error'].includes(applicationReadStatus);
+  const quotaExceeded = applicationReadStatus === 'quota-exceeded';
   const applicationsAreCurrent = applicationReadStatus === 'server';
 
   useEffect(() => {
@@ -121,7 +122,9 @@ export default function App() {
   useEffect(() => {
     const unsubscribeTimeline = subscribeTimelineConfig((remoteConfig) => {
       setTimelineConfig(remoteConfig);
-    }, (error) => setTimelineError(firestoreReadErrorStatus(error)));
+    }, (error) => setTimelineError(firestoreReadErrorStatus(error)), (status) => {
+      if (status === 'server') setTimelineError(null);
+    });
     return unsubscribeTimeline;
   }, [refreshVersion]);
 
@@ -203,9 +206,16 @@ export default function App() {
 
       {/* Main Content Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-28 md:pb-8">
+        {timelineError && (
+          <div role="status" className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">ยังอ่านกำหนดการล่าสุดไม่ได้</p>
+            <p>{timelineError === 'quota-exceeded' ? 'การอ่านกำหนดการถึงโควตาชั่วคราว' : timelineError === 'permission-denied' ? 'ระบบไม่อนุญาตให้อ่านกำหนดการ กรุณาติดต่อเจ้าหน้าที่' : 'กำลังแสดงกำหนดการที่เก็บไว้ ข้อมูลอาจยังไม่เป็นปัจจุบัน'}</p>
+            <button type="button" onClick={refreshApplications} className="mt-2 underline">ลองเชื่อมต่ออีกครั้ง</button>
+          </div>
+        )}
         {(hasReadError || (needsApplications && !applicationsAreCurrent)) && (
           <div role="status" className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 space-y-2">
-            <p className="font-bold">{hasReadError ? (quotaExceeded ? 'ฐานข้อมูลถึงโควตาการใช้งานชั่วคราว' : 'ยังเชื่อมต่อฐานข้อมูลเพื่ออ่านรายชื่อไม่ได้') : 'กำลังตรวจสอบรายชื่อจากฐานข้อมูล'}</p>
+            <p className="font-bold">{hasReadError ? (quotaExceeded ? 'ฐานข้อมูลถึงโควตาการใช้งานชั่วคราว' : applicationReadStatus === 'permission-denied' ? 'ยังไม่ได้รับอนุญาตให้อ่านรายชื่อ กรุณาลองใหม่หรือติดต่อเจ้าหน้าที่' : applicationReadStatus === 'unavailable' ? 'การเชื่อมต่อขัดข้อง ยังอ่านรายชื่อจากฐานข้อมูลไม่ได้' : 'ยังเชื่อมต่อฐานข้อมูลเพื่ออ่านรายชื่อไม่ได้') : 'กำลังตรวจสอบรายชื่อจากฐานข้อมูล'}</p>
             <p>{applications.length > 0 ? `กำลังแสดงข้อมูลเดิมในเครื่อง ${applications.length} ราย ข้อมูลอาจยังไม่ครบหรือไม่เป็นปัจจุบัน` : 'ยังยืนยันจำนวนและรายชื่อผู้สมัครไม่ได้ จึงไม่สามารถสรุปได้ว่าไม่มีผู้สมัครหรือข้อมูลถูกลบ'}</p>
             <p>ผู้ที่สมัครแล้วควรเก็บเลขที่ใบสมัครไว้ หากยังไม่พบชื่อไม่ต้องสมัครซ้ำทันที ติดต่อ 055-961911 เพื่อตรวจสอบ การสมัครใหม่จะสำเร็จต่อเมื่อฐานข้อมูลยืนยันการบันทึกเท่านั้น</p>
             <button type="button" onClick={refreshApplications} className="rounded-full bg-amber-900 px-4 py-2 text-white">ลองเชื่อมต่อฐานข้อมูลอีกครั้ง</button>

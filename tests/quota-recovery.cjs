@@ -78,7 +78,7 @@ test('successful reconnection replaces old cache with confirmed applicants', () 
 test('permission errors retain cached records and are not reported as quota errors', () => {
   const x = setup();
   x.fail({ code: 'permission-denied', message: 'Insufficient permissions' });
-  assert.equal(x.states.at(-1), 'error');
+  assert.equal(x.states.at(-1), 'permission-denied');
   assert.equal(x.cache().length, 1);
   assert.equal(x.writes(), 0);
 });

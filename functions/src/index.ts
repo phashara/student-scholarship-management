@@ -102,7 +102,7 @@ export const submitApplication = onCall({ region, maxInstances: 10, invoker: 'pu
   return { application: saved };
 });
 
-export const deleteApplication = onCall({ region, maxInstances: 5 }, async (request) => {
+export const deleteApplication = onCall({ region, maxInstances: 5, invoker: 'public', enforceAppCheck: true }, async (request) => {
   requireAdmin(request);
   const id = request.data?.applicationId;
   if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new HttpsError('invalid-argument', 'เลขใบสมัครไม่ถูกต้อง');
@@ -129,7 +129,7 @@ export const deleteApplication = onCall({ region, maxInstances: 5 }, async (requ
   return { deleted: true };
 });
 
-export const clearApplications = onCall({ region, maxInstances: 1, timeoutSeconds: 540 }, async (request) => {
+export const clearApplications = onCall({ region, maxInstances: 1, timeoutSeconds: 540, invoker: 'public', enforceAppCheck: true }, async (request) => {
   requireAdmin(request);
   let deleted = 0;
   while (true) {
@@ -219,7 +219,7 @@ export const setAdminClaim = onCall({ region, maxInstances: 1 }, async (request)
   return { email: targetEmail, admin: grant };
 });
 
-export const updateApplication = onCall({ region, maxInstances: 5 }, async (request) => {
+export const updateApplication = onCall({ region, maxInstances: 5, invoker: 'public', enforceAppCheck: true }, async (request) => {
   requireAdmin(request);
   const app = request.data?.application;
   if (!app || typeof app !== 'object' || Array.isArray(app)) throw new HttpsError('invalid-argument', 'ไม่พบข้อมูลใบสมัคร');
@@ -240,7 +240,7 @@ export const updateApplication = onCall({ region, maxInstances: 5 }, async (requ
   return { application: (await ref.get()).data() };
 });
 
-export const backfillPublicApplications = onCall({ region, maxInstances: 1, timeoutSeconds: 540 }, async (request) => {
+export const backfillPublicApplications = onCall({ region, maxInstances: 1, timeoutSeconds: 540, invoker: 'public', enforceAppCheck: true }, async (request) => {
   requireAdmin(request);
   const checkpoint = metadata.doc('public_applications_backfill');
   const existingCheckpoint = await checkpoint.get();

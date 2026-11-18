@@ -35,15 +35,18 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
   const [hasSearched, setHasSearched] = useState(Boolean(initialQuery));
   const [matchedApp, setMatchedApp] = useState<ScholarshipApplication | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setHasSearched(true);
     setIsSearching(true);
+    setSearchError('');
     try {
       setMatchedApp(await onLookup(query.trim()));
     } catch {
       setMatchedApp(null);
+      setSearchError('ยังตรวจสอบสถานะกับระบบไม่ได้ กรุณาลองใหม่หรือติดต่อเจ้าหน้าที่ โทร. 055-961911');
     } finally {
       setIsSearching(false);
     }
@@ -138,6 +141,8 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({
         <>
           {isSearching ? (
             <div className="bg-white rounded-[26px] p-8 text-center text-sm text-[#636366]">กำลังตรวจสอบสถานะ...</div>
+          ) : searchError ? (
+            <div role="alert" className="bg-amber-50 rounded-[26px] p-8 text-center text-sm text-amber-950">{searchError}</div>
           ) : matchedApp ? (
             <div className="bg-white rounded-[26px] p-6 sm:p-8 shadow-xs border border-black/[0.04] space-y-6 animate-fadeIn">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-black/[0.05]">
