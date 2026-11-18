@@ -68,7 +68,12 @@ export default function App() {
   const applicationsAreCurrent = applicationReadStatus === 'server';
 
   useEffect(() => {
+    let authGeneration = 0;
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      const generation = ++authGeneration;
+      // Revoke the previous view immediately while the new user's claims load.
+      setIsAdminLoggedIn(false);
+      setApplications([]);
       if (!user || !user.emailVerified) {
         setIsAdminLoggedIn(false);
         safeSetApplicationsLocalStorage([]);
@@ -78,6 +83,7 @@ export default function App() {
       }
       try {
         const tokenResult = await user.getIdTokenResult();
+        if (generation !== authGeneration) return;
         const isAuthorized = tokenResult.claims.admin === true;
         setIsAdminLoggedIn(isAuthorized);
         if (isAuthorized) {
@@ -89,11 +95,16 @@ export default function App() {
           setApplications([]);
         }
       } catch {
+        if (generation !== authGeneration) return;
         setIsAdminLoggedIn(false);
+        setApplications([]);
       }
     });
     setTimelineConfig(loadTimelineConfig());
-    return unsubscribeAuth;
+    return () => {
+      ++authGeneration;
+      unsubscribeAuth();
+    };
   }, []);
 
   useEffect(() => {
@@ -118,7 +129,7 @@ export default function App() {
     // A deliberate retry reattaches failed listeners. Avoid rapid repeated reads.
     if (Date.now() - lastRefresh.current < 15000) return;
     lastRefresh.current = Date.now();
-    setApplications(loadApplications());
+    if (isAdminLoggedIn) setApplications(loadApplications());
     setTimelineError(null);
     setRefreshVersion(version => version + 1);
   };
